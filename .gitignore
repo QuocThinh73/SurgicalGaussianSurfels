@@ -4,4 +4,4 @@ cut_output*/
 
 data/
 test/
-
+submodules/omnidata/pretrained_models/*.ckpt
