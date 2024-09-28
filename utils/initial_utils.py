@@ -7,7 +7,7 @@ import cv2 as cv
 
 def imread(f):
     if f.endswith('png'):
-        return imageio.imread(f, ignoregamma=True)
+        return imageio.imread(f, apply_gamma=False)
     else:
         return imageio.imread(f)
 
@@ -144,8 +144,8 @@ def get_pointcloud(color, depth, intrinsics, mask, w2c=None, transform_pts=False
     return pts, cols
 
 def sample_pts(height, width, factor=2):
-    mask_sample_h = np.zeros((height, width)).astype(np.int)
-    mask_sample_w = np.zeros((height, width)).astype(np.int)
+    mask_sample_h = np.zeros((height, width)).astype(int)
+    mask_sample_w = np.zeros((height, width)).astype(int)
     mask_sample_h[:, 1::factor] = 1
     mask_sample_w[1::factor, :] = 1
     mask_sample = mask_sample_h & mask_sample_w

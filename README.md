@@ -1,19 +1,19 @@
-# SurgicalGaussian: Deformable 3D Gaussians for High-Fidelity Surgical Scene Reconstruction
+# SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels
 
-### [Project Page](https://surgicalgaussian.github.io/)
+### [Project Page]()
 
 
 -------------------------------------------
-![introduction](assets/method.png)
+![introduction](assets/)
 
 ## Environment
 Please follow the [3D-GS](https://github.com/graphdeco-inria/gaussian-splatting) and [4DGS](https://github.com/hustvl/4DGaussians) to install the relative packages.
 ```bash
 git clone https://github.com/xwx0924/SurgicalGaussian.git
-cd SurgicalGaussian
+cd SurgicalGaussianSurfels
 
-conda create -n SurgicalGaussian python=3.7 
-conda activate SurgicalGaussian
+conda create -n SurgicalGaussianSurfels python=3.7 
+conda activate SurgicalGaussianSurfels
 
 # install pytorch and others.
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113

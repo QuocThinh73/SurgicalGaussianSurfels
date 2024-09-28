@@ -13,8 +13,16 @@ import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 from math import exp
+import torchvision.models as models
 from pytorch3d.ops.knn import knn_points
+import numpy as np
+import torch.nn as nn
+import timm
+import torch.cuda.amp as amp
 
+
+# Enable cudnn benchmark for optimized performance
+torch.backends.cudnn.benchmark = True
 
 def l1_loss(network_output, gt):
     return torch.abs((network_output - gt)).mean()
@@ -97,3 +105,51 @@ def def_reg_loss(gs_can, d_xyz, d_rotation, d_scaling, K=5):
     loss_cov = F.l1_loss(dis_cov_can, dis_cov_obs)
 
     return loss_pos, loss_cov
+
+
+# Load VGG16 with frozen weights, using the first 12 layers
+vgg = models.vgg16(pretrained=True).features[:12].cuda().eval()
+
+# Freeze VGG weights to avoid unnecessary gradient computations
+for param in vgg.parameters():
+    param.requires_grad = False
+
+# Define the perceptual loss function with AMP and resizing
+def perceptual_loss(pred, gt):
+    # Ensure pred and gt have batch dimension (N, C, H, W)
+    if pred.dim() == 3:  # If the image doesn't have batch size, add it
+        pred = pred.unsqueeze(0)
+    if gt.dim() == 3:  # If the image doesn't have batch size, add it
+        gt = gt.unsqueeze(0)
+
+    # Resize to 256x256
+    pred_resized = F.interpolate(pred, size=(256, 256))  # (N, C, 256, 256)
+    gt_resized = F.interpolate(gt, size=(256, 256))  # (N, C, 256, 256)
+
+    with amp.autocast():
+        # Extract features using VGG
+        pred_features = vgg(pred_resized)
+        gt_features = vgg(gt_resized)
+
+    loss = F.mse_loss(pred_features, gt_features)  # Use L1 loss
+    return loss
+
+
+def edge_aware_smoothness_loss(depth, image):
+    grad_depth_x = torch.abs(depth[:, :-1, :] - depth[:, 1:, :])
+    grad_depth_y = torch.abs(depth[:, :, :-1] - depth[:, :, 1:])
+
+    grad_image_x = torch.mean(torch.abs(image[:, :-1, :] - image[:, 1:, :]), dim=1, keepdim=True)
+    grad_image_y = torch.mean(torch.abs(image[:, :, :-1] - image[:, :, 1:]), dim=1, keepdim=True)
+
+    loss_x = grad_depth_x * torch.exp(-grad_image_x)
+    loss_y = grad_depth_y * torch.exp(-grad_image_y)
+
+    return loss_x.mean() + loss_y.mean()
+
+def cos_loss(output, gt, thrsh=0, weight=1):
+    cos = torch.sum(output * gt * weight, 0)
+    return (1 - cos[cos < np.cos(thrsh)]).mean()
+
+def photometric_loss(pred, gt):
+    return torch.mean(torch.abs(pred - gt))

@@ -78,7 +78,7 @@ def load_K_Rt_from_P(filename, P=None):
 
 def imread(f):
     if f.endswith('png'):
-        return imageio.imread(f, ignoregamma=True)
+        return imageio.imread(f, apply_gamma=False)
     else:
         return imageio.imread(f)
 

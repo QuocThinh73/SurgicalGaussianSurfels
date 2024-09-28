@@ -11,9 +11,11 @@
 
 import torch
 import math
-from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+#from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from diff_gauss import GaussianRasterizationSettings, GaussianRasterizer
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
+import numpy as np
 from utils.rigid_utils import from_homogenous, to_homogenous
 
 
@@ -97,7 +99,19 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
         colors_precomp = override_color
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
-    rendered_image, radii, depth = rasterizer(
+    # rendered_image, radii, depth = rasterizer(
+    #     means3D=means3D,
+    #     means2D=means2D,
+    #     shs=shs,
+    #     colors_precomp=colors_precomp,
+    #     opacities=opacity,
+    #     scales=scales,
+    #     rotations=rotations,
+    #     cov3D_precomp=cov3D_precomp)
+
+    val = torch.empty(0, 3, device='cuda:0', requires_grad=False)
+
+    rendered_image, rendered_depth, rendered_norm, rendered_alpha, radii, extra = rasterizer(
         means3D=means3D,
         means2D=means2D,
         shs=shs,
@@ -105,7 +119,10 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
         opacities=opacity,
         scales=scales,
         rotations=rotations,
-        cov3D_precomp=cov3D_precomp)
+        cov3Ds_precomp=cov3D_precomp,
+        extra_attrs=val
+    )
+
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
     # They will be excluded from value updates used in the splitting criteria.
@@ -113,5 +130,7 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
             "viewspace_points": screenspace_points,
             "visibility_filter": radii > 0,
             "radii": radii,
-            "depth": depth,
+            "depth": rendered_depth,
+            "normal": rendered_norm,
+            "alpha": rendered_alpha,
             }

@@ -10,5 +10,5 @@ ModelParams = dict(
 )
 
 OptimizationParams = dict(
-    iterations=40_000,
+    iterations=50_000,
 )

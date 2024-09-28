@@ -11,7 +11,7 @@
 
 import torch
 import numpy as np
-from utils.general_utils import inverse_sigmoid, np_inverse_sigmoid, get_expon_lr_func, build_rotation
+from utils.general_utils import inverse_sigmoid, np_inverse_sigmoid, get_expon_lr_func, build_rotation, normal2rotation
 from torch import nn
 import os
 from utils.system_utils import mkdir_p
@@ -84,21 +84,129 @@ class GaussianModel:
         if self.active_sh_degree < self.max_sh_degree:
             self.active_sh_degree += 1
 
+    # def create_from_pcd(self, pcd: BasicPointCloud, spatial_lr_scale: float):
+    #     #  self.spatial_lr_scale = 5  #
+    #     self.spatial_lr_scale = spatial_lr_scale
+    #     fused_point_cloud = torch.tensor(np.asarray(pcd.points)).float().cuda()
+    #     fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
+    #     features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()
+    #     features[:, :3, 0] = fused_color
+    #     features[:, 3:, 1:] = 0.0
+    #
+    #     print("Number of points at initialisation : ", fused_point_cloud.shape[0])
+    #
+    #     dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
+    #     scales = torch.log(torch.sqrt(dist2))[..., None].repeat(1, 3)
+    #     rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
+    #     rots[:, 0] = 1
+    #
+    #     opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
+    #
+    #     self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
+    #     self._features_dc = nn.Parameter(
+    #         features[:, :, 0:1].transpose(1, 2).contiguous().requires_grad_(True))
+    #     self._features_rest = nn.Parameter(features[:, :, 1:].transpose(1, 2).contiguous().requires_grad_(True))
+    #     self._scaling = nn.Parameter(scales.requires_grad_(True))
+    #     self._rotation = nn.Parameter(rots.requires_grad_(True))
+    #     self._opacity = nn.Parameter(opacities.requires_grad_(True))
+    #     self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
+
+
     def create_from_pcd(self, pcd: BasicPointCloud, spatial_lr_scale: float):
-        #  self.spatial_lr_scale = 5  #
+        """
+        Initializes the GaussianModel from a point cloud, setting up spatial coordinates, SH features, scales, rotations,
+        and opacities as learnable parameters for the Surgical Gaussian Surfels model.
+
+        This method processes the input point cloud data and converts it into a format suitable for the model's operations,
+        including rendering and deformation. It handles point cloud properties such as 3D coordinates, colors, and normals,
+        and conditionally processes normals to generate rotation quaternions.
+
+        Parameters:
+        ----------
+        pcd : BasicPointCloud
+            The input point cloud containing 3D points, colors, and optionally normals.
+
+        spatial_lr_scale : float
+            A scaling factor for the learning rate associated with spatial parameters. This affects how quickly the model
+            learns adjustments to spatial features during training.
+
+        Returns:
+        -------
+        None
+            The method modifies the instance attributes in place, initializing various parameters needed for subsequent
+            operations.
+
+        Attributes Initialized:
+        -----------------------
+        _xyz : torch.nn.Parameter
+            The 3D coordinates of the points in the point cloud, stored as a learnable parameter.
+
+        _features_dc : torch.nn.Parameter
+            The direct component (DC) of the SH features, initialized from the point cloud colors and stored as a
+            learnable parameter.
+
+        _features_rest : torch.nn.Parameter
+            The higher-order SH coefficients for the points, initialized to zero and stored as a learnable parameter.
+
+        _scaling : torch.nn.Parameter
+            The scaling factors for the points, derived from pairwise distances and stored as a learnable parameter.
+
+        _rotation : torch.nn.Parameter
+            The rotation quaternions for the points, derived from normals if available, or initialized to identity
+            rotations, and stored as a learnable parameter.
+
+        _opacity : torch.nn.Parameter
+            The opacity values for the points, initialized using an inverse sigmoid function and stored as a
+            learnable parameter.
+
+        max_radii2D : torch.Tensor
+            A tensor initialized to zeros, used to store the maximum 2D radii for each point, which may be relevant for
+            rendering or deformation.
+
+        Notes:
+        -----
+        - The method handles the conditional duplication of the point cloud data if normals are absent or insufficient,
+          generating random normals and adjusting the rotations accordingly.
+        - The method ensures that all operations are performed on the GPU by moving tensors to the GPU with `.cuda()`,
+          optimizing performance for large point clouds.
+        - The method logs the number of points in the point cloud at initialization, providing useful information for
+          debugging or tracking the processing pipeline.
+        """
+
         self.spatial_lr_scale = spatial_lr_scale
+        #  self.spatial_lr_scale = 5  #
+
         fused_point_cloud = torch.tensor(np.asarray(pcd.points)).float().cuda()
         fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
-        features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()
-        features[:, :3, 0] = fused_color
-        features[:, 3:, 1:] = 0.0
 
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
 
         dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
         scales = torch.log(torch.sqrt(dist2))[..., None].repeat(1, 3)
-        rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
-        rots[:, 0] = 1
+
+        self.config = [1, 1, 1, 0]
+
+        if self.config[0] > 0:
+            if np.abs(np.sum(pcd.normals)) < 1:
+                dup = 4
+                fused_point_cloud = torch.cat([fused_point_cloud for _ in range(dup)], 0)
+                fused_color = torch.cat([fused_color for _ in range(dup)], 0)
+                scales = torch.cat([scales for _ in range(dup)], 0)
+                normals = np.random.rand(len(fused_point_cloud), 3) - 0.5
+                normals /= np.linalg.norm(normals, 2, 1, True)
+            else:
+                normals = pcd.normals
+
+            rots = normal2rotation(torch.from_numpy(normals).to(torch.float32)).to("cuda")
+            scales[..., -1] -= 1e10 # squeeze z scaling. A very large negative value is subtracted from the z-scale to effectively flatten the points along the z-axis
+        else:
+            rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
+            rots[:, 0] = 1
+
+        features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()  # Initializes a tensor to store the SH coefficients (features) for each point. The shape is (number of points, 3, number of SH coefficients).
+        features[:, :3, 0] = fused_color  # The first part (features[:, :3, 0]) is set to the converted SH colors.
+        features[:, 3:, 1:] = 0.0  # The second part (features[:, 3:, 1:]) is initialized to zeros. This suggests that initially, only the direct component (DC) of the SH is used, and the higher-order coefficients are set to zero.
+
 
         opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
 
@@ -109,7 +217,8 @@ class GaussianModel:
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
-        self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
+        self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")          # Initializes a tensor to store the maximum 2D radii for each point.
+
 
     def training_setup(self, training_args):
         self.percent_dense = training_args.percent_dense
