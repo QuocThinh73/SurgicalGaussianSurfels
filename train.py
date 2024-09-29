@@ -114,10 +114,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                 mono *= mask
                 monoN = mono[:3]
                 # monoD = mono[3:]
-                # monoD_match, mask_match = match_depth(monoD, depth, mask * mask_vis, 256, [viewpoint_cam.image_height, viewpoint_cam.image_width])
+                #depth_ = depth2rgb(depth_np, mask_vis)
+                # monoD_match, mask_match = match_depth(monoD, depth_, mask * mask_vis, 256, [viewpoint_cam.image_height, viewpoint_cam.image_width])
 
                 loss_monoN = cos_loss(normal1, monoN, weight=mask)
-                # loss_depth = l1_loss(depth * mask_match, monoD_match)
+                # loss_depth = l1_loss(depth_ * mask_match, monoD_match)
 
             #Image.fromarray((gt_image.permute(1, 2, 0).detach().cpu().numpy() * 255).astype(np.uint8)).save('gt_image.png')
             #Image.fromarray((image.permute(1, 2, 0).detach().cpu().numpy() * 255).astype(np.uint8)).save('rendered_image.png')
