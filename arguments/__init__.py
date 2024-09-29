@@ -48,6 +48,8 @@ class ParamGroup:
 
 
 class ModelParams(ParamGroup):
+    mono_normal: bool
+
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 3
         self._source_path = ""
@@ -67,6 +69,7 @@ class ModelParams(ParamGroup):
         self.is_mask = False
         self.depth_initial = False
         self.accurate_mask = False
+        self.mono_normal = False #change back to true
 
         super().__init__(parser, "Loading Parameters", sentinel)
 

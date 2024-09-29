@@ -74,7 +74,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
         iter_start.record()
 
-
         # Every 1000 its we increase the levels of SH up to a maximum degree
         if iteration % 1000 == 0:
             gaussians.oneupSHdegree()
@@ -98,10 +97,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             "viewspace_points"], render_pkg_re["visibility_filter"], render_pkg_re["radii"], render_pkg_re["depth"], render_pkg_re["normal"], render_pkg_re["alpha"]
 
         image1 = image
-        depth1 = depth
 
         mask_vis = (alpha.detach() > 1e-5)
         normal1 = torch.nn.functional.normalize(norm, dim=0) * mask_vis
+        mono = viewpoint_cam.mono if dataset.mono_normal else None
+
+
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         gt_image1 = gt_image
@@ -109,6 +110,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
             mask = viewpoint_cam.mask.unsqueeze(0).cuda()
             gt_image = gt_image * mask
 
+            if mono is not None:
+                mono *= mask
+                monoN = mono[:3]
+                # monoD = mono[3:]
+                # monoD_match, mask_match = match_depth(monoD, depth, mask * mask_vis, 256, [viewpoint_cam.image_height, viewpoint_cam.image_width])
+
+                loss_monoN = cos_loss(normal1, monoN, weight=mask)
+                # loss_depth = l1_loss(depth * mask_match, monoD_match)
 
             #Image.fromarray((gt_image.permute(1, 2, 0).detach().cpu().numpy() * 255).astype(np.uint8)).save('gt_image.png')
             #Image.fromarray((image.permute(1, 2, 0).detach().cpu().numpy() * 255).astype(np.uint8)).save('rendered_image.png')
@@ -142,21 +151,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         # Compute cosine similarity loss between predicted normals and depth-derived normals
         #loss_surface = cos_loss(norm, d2n)
         #loss += (0.01 + 0.1 * min(2 * iteration / opt.iterations, 1)) * loss_surface  # Adjust the weight as needed
-        #
-        # # 4. Curvature Regularization Loss
-        # # Purpose: Encourage smoothness in the predicted surface by penalizing high curvature
-        # # Compute curvature from predicted normals
-        # curv_n = normal2curv(norm, mask_vis)
-        # # Compute L1 loss on curvature
-        # loss_curv = l1_loss(curv_n, torch.zeros_like(curv_n))
-        # #loss += 0.005 * loss_curv  # Adjust the weight as needed
+
 
         depth_loss = None
         if dataset.is_depth:
             gt_depth = viewpoint_cam.depth.unsqueeze(0).cuda()
             mask_depth = viewpoint_cam.mask_depth.unsqueeze(0).cuda()
-            depth = depth * mask_depth
-            depth_loss = l1_loss(depth, gt_depth)
+            depth1 = depth * mask_depth
+            depth_loss = l1_loss(depth1, gt_depth)
 
             #smoothness_loss_val = edge_aware_smoothness_loss(depth, gt_image)
             #loss += opt.lambda_smoothness * smoothness_loss_val
@@ -168,12 +170,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
         perceptual_loss_val = perceptual_loss(image, gt_image)
         loss += opt.lambda_perceptual * perceptual_loss_val
 
-        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # resized_rendered_image = torch.nn.functional.interpolate(image.unsqueeze(0), size=(256, 256)).to(
-        #     device)
-        # resized_gt_image = torch.nn.functional.interpolate(gt_image.unsqueeze(0), size=(256, 256)).to(device)
-        # perceptual_loss = ConvNeXtPerceptualLoss(device=device)
-        # loss += opt.lambda_perceptual * perceptual_loss(resized_rendered_image, resized_gt_image)
+
+        #normal and depth loss
+        if mono is not None:
+            loss += (0.04 - ((iteration / opt.iterations)) * 0.02) * loss_monoN
+            # loss += 0.01 * loss_depth
 
         # deformation loss
         loss_pos, loss_cov = def_reg_loss(scene.gaussians, d_xyz, d_rotation, d_scaling)
@@ -204,7 +205,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
 
             if (iteration - 1) % 1000 == 0:
                 normal_wrt = normal2rgb(normal1, mask_vis)
-                depth_wrt = depth2rgb(depth1, mask_vis)
+                depth_wrt = depth2rgb(depth, mask_vis)
                 img_wrt = torch.cat([gt_image1, image1, normal_wrt * alpha, depth_wrt * alpha], 2)
                 os.makedirs('test', exist_ok=True)
                 save_image(img_wrt.cpu(), f'test/test.png')
@@ -247,8 +248,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                     render_pkg_re = render(view, gaussians, pipe, background, d_xyz, d_rotation, d_scaling)
                     rendering = render_pkg_re["render"]
                     depth_np = render_pkg_re["depth"]
-                    depth = depth_np / (depth_np.max() + 1e-5)
-                    rgb_depth_wrt = depth2rgb(depth1, mask_vis)
+                    alpha_np = render_pkg_re["alpha"]
+                    mask_vis1 = (alpha_np.detach() > 1e-5)
+                    depth2 = depth_np / (depth_np.max() + 1e-5)
+                    rgb_depth_wrt = depth2rgb(depth_np, mask_vis1)
 
                     # --- New Code to Extract and Save Normals ---
                     normals = render_pkg_re["normal"]  # Extract normal maps
@@ -256,8 +259,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations):
                     torchvision.utils.save_image(normals_visual, os.path.join(normal_path, '{0:05d}'.format(name) + ".png"))
 
                     torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(name) + ".png"))
-                    torchvision.utils.save_image(depth, os.path.join(depth_path, '{0:05d}'.format(name) + ".png"))
-                    torchvision.utils.save_image(rgb_depth_wrt * alpha, os.path.join(rgb_depth_path, '{0:05d}'.format(name) + ".png"))
+                    torchvision.utils.save_image(depth2, os.path.join(depth_path, '{0:05d}'.format(name) + ".png"))
+                    torchvision.utils.save_image(rgb_depth_wrt * alpha_np, os.path.join(rgb_depth_path, '{0:05d}'.format(name) + ".png"))
 
             # Densification
             if iteration < opt.densify_until_iter:  # < 15_000

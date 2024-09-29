@@ -39,6 +39,9 @@ if args.task == 'NONE':
     args.task = 'normal'
 if args.output_path is None:
     args.output_path = f"{args.img_path}/../{args.task}"
+if args.task == 'depth':
+    args.output_path = f"{args.img_path}/../mono_depth"
+
 os.makedirs(args.output_path, exist_ok=True)
 map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -58,7 +61,6 @@ if args.task == 'normal':
     model.to(device)
 
 elif args.task == 'depth':
-
     pretrained_weights_path = root_dir + 'omnidata_dpt_depth_v2.ckpt'  # 'omnidata_dpt_depth_v1.ckpt'
     model = DPTDepthModel(backbone='vitb_rn50_384') # DPT Hybrid
     checkpoint = torch.load(pretrained_weights_path, map_location=map_location)

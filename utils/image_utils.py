@@ -118,3 +118,70 @@ def depth2rgb(depth, mask):
     depth_draw = torch.from_numpy(depth_draw).to(depth.device).permute([2, 0, 1]) * mask
 
     return depth_draw
+
+def match_depth(d0, d1, mask, patch_size, reso):
+    clip_size = min(reso) // patch_size * patch_size
+    if min(reso) % patch_size == 0:
+        clip_size -= patch_size // 2
+
+    y_ = np.random.randint(0, reso[0] - clip_size + 1)
+    x_ = np.random.randint(0, reso[1] - clip_size + 1)
+
+    d0_ = d0[:, y_:y_ + clip_size, x_:x_ + clip_size]
+    d1_ = d1[:, y_:y_ + clip_size, x_:x_ + clip_size]
+    mask_ = (mask)[:, y_:y_ + clip_size, x_:x_ + clip_size]
+
+    monoD_match_ = linear_match(d0_, d1_, mask_, patch_size)
+
+    monoD_match = d0.clone()
+    monoD_match[:, y_:y_ + clip_size, x_:x_ + clip_size] = monoD_match_
+    mask_match = mask.clone()
+    mask_match[:, y_:y_ + clip_size, x_:x_ + clip_size] = mask_
+    return monoD_match, mask_match
+
+def linear_match(d0, d1, mask, patch_size):
+    # copy from MonoSDF: https://github.com/autonomousvision/monosdf/
+    d0 = d0.detach()
+    d1 = d1.detach()
+    mask = mask.detach()
+
+    patch_dim = (torch.tensor(d0.shape[1:3]) / patch_size).to(torch.int32)
+    patch_num = patch_dim[0] * patch_dim[1]
+
+    comb = torch.cat([d0, d1, mask], 0)
+    comb_ = comb[:, :patch_dim[0] * patch_size, :patch_dim[1] * patch_size]
+    comb_ = comb_.reshape([3, patch_dim[0], patch_size, patch_dim[1], patch_size])
+    comb_ = comb_.permute([0, 1, 3, 2, 4])
+    comb_ = comb_.reshape([3, patch_num, patch_size, patch_size])
+
+    d0_ = comb_[0]
+    d1_ = comb_[1]
+    mask_ = comb_[2]
+    a_00 = torch.sum(mask_ * d0_ * d0_, (1, 2))
+    a_01 = torch.sum(mask_ * d0_, (1, 2))
+    a_11 = torch.sum(mask_, (1, 2))
+
+    # right hand side: b = [b_0, b_1]
+    b_0 = torch.sum(mask_ * d0_ * d1_, (1, 2))
+    b_1 = torch.sum(mask_ * d1_, (1, 2))
+
+    # solution: x = A^-1 . b = [[a_11, -a_01], [-a_10, a_00]] / (a_00 * a_11 - a_01 * a_10) . b
+    x_0 = torch.zeros_like(b_0)
+    x_1 = torch.zeros_like(b_1)
+
+    det = a_00 * a_11 - a_01 * a_01
+    valid = det.nonzero()
+
+    x_0[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
+    x_1[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
+
+
+    d0_ = x_0[:, None, None] * d0_ + x_1[:, None, None]
+    d0_ = d0_.reshape([1, patch_dim[0], patch_dim[1], patch_size, patch_size])
+    d0_ = d0_.permute([0, 1, 3, 2, 4])
+    d0_ = d0_.reshape([1, patch_dim[0] * patch_size, patch_dim[1] * patch_size])
+    d0_b = d0[:, patch_dim[0] * patch_size:, :patch_dim[1] * patch_size]
+    d0_ = torch.cat([d0_, d0_b], 1)
+    d0_r = d0[:, :, patch_dim[1] * patch_size:]
+    d0_ = torch.cat([d0_, d0_r], 2)
+    return d0_

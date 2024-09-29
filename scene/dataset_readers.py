@@ -44,6 +44,7 @@ class CameraInfo(NamedTuple):
     depth: Optional[np.array] = None
     mask_depth: Optional[np.array] = None
     mask: Optional[np.array] = None
+    mono: Optional[np.array] = None
 
 
 class SceneInfo(NamedTuple):
@@ -193,13 +194,24 @@ def readCamerasdavinci(path, data_type, is_depth, depth_scale, is_mask, npy_file
                 mask_depth = mask_depth * mask_image
             depth_image = depth_image * mask_depth
 
+        # Integrate the mono handling here
+        try:
+            monoN = read_monoData(f'{path}/normal/{image_name}_normal.npy')
+            try:
+                monoD = read_monoData(f'{path}/mono_depth/{image_name}_depth.npy')
+            except FileNotFoundError:
+                monoD = np.zeros_like(monoN[:1])  # Handle missing depth by using zeros
+            mono = np.concatenate([monoN, monoD], 0)  # Concatenate normal and depth maps
+        except FileNotFoundError:
+            mono = None
+
         frame_time = i / (n_frames - 1)
         FovX = focal2fov(focal, image.size[0])
         FovY = focal2fov(focal, image.size[1])
         cam_infos.append(CameraInfo(uid=i, R=R, T=T, FovX=FovX, FovY=FovY,
                                     image=image,
                                     image_path=images_path, image_name=image_name,
-                                    width=image.size[0], height=image.size[1], fid=frame_time, depth=depth_image, mask_depth=mask_depth, mask=mask_image))
+                                    width=image.size[0], height=image.size[1], fid=frame_time, depth=depth_image, mask_depth=mask_depth, mask=mask_image, mono=mono))
 
 
     return cam_infos
@@ -252,6 +264,15 @@ def readEndonerfInfo(path, data_type, eval, is_depth, depth_scale, is_mask, dept
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path)
     return scene_info
+
+
+def read_monoData(path):
+    mono = np.load(path)
+    if len(mono.shape) == 4:
+        mono = mono[0]
+    elif len(mono.shape) == 2:
+        mono = mono[None]
+    return mono
 
 
 sceneLoadTypeCallbacks = {

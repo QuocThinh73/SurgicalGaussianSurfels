@@ -14,6 +14,7 @@ import numpy as np
 from utils.general_utils import PILtoTorch, ArrayToTorch
 from utils.graphics_utils import fov2focal
 import json
+import torch
 
 WARNED = False
 
@@ -44,6 +45,20 @@ def loadCam(args, id, cam_info, resolution_scale):
     resized_image_rgb = PILtoTorch(cam_info.image, resolution)  # 这里把图像转换到0-1，同时[H W 3] 调整为 [3 H W]？
 
     gt_image = resized_image_rgb[:3, ...]
+
+    # Resize the mono data (if available)
+    resized_mono = None
+    if cam_info.mono is not None:
+        # Assuming mono data is in shape [4, H, W] where the first dimension includes both normal and depth
+        resized_mono = torch.nn.functional.interpolate(
+            torch.tensor(cam_info.mono).unsqueeze(0),  # Add batch dimension
+            size=(resolution[1], resolution[0]),  # Resize to match new resolution
+            mode='bilinear',
+            align_corners=False
+        ).squeeze(0)  # Remove batch dimension
+
+
+
     loaded_mask = None
 
     if resized_image_rgb.shape[1] == 4:
@@ -54,7 +69,7 @@ def loadCam(args, id, cam_info, resolution_scale):
                   image=gt_image, gt_alpha_mask=loaded_mask,
                   image_name=cam_info.image_name, uid=id,
                   data_device=args.data_device if not args.load2gpu_on_the_fly else 'cpu', fid=cam_info.fid,
-                  depth=cam_info.depth, mask_depth=cam_info.mask_depth, mask=cam_info.mask)
+                  depth=cam_info.depth, mask_depth=cam_info.mask_depth, mask=cam_info.mask, mono=resized_mono)
 
 
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
