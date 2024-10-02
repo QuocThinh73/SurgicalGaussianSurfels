@@ -76,9 +76,9 @@ Some source code is borrowed from [3DGS](https://github.com/graphdeco-inria/gau
 If you find this work helpful, welcome to cite this paper. 
 ```
 @article{xie2024surgicalgaussian,
-  author    = {Xie, Weixing and Yao, Junfeng and Cao, Xianpeng and Lin, Qiqin and Tang, Zerui and Dong, Xiao and Guo, Xiaohu},
-  title     = {SurgicalGaussian: Deformable 3D Gaussians for High-Fidelity Surgical Scene Reconstruction},
-  journal   = {arXiv preprint arXiv:2407.05023},
+  author    = {},
+  title     = {SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels},
+  journal   = {},
   year      = {2024},
 }
 ```
