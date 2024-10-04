@@ -1,10 +1,6 @@
 # SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels
 
-### [Project Page]()
-
-
--------------------------------------------
-![introduction](assets/)
+### [Project Page](https://ericzzj1989.github.io/sgs)
 
 ## Environment
 Please follow the [3D-GS](https://github.com/graphdeco-inria/gaussian-splatting) and [4DGS](https://github.com/hustvl/4DGaussians) to install the relative packages.
@@ -75,10 +71,10 @@ Some source code is borrowed from [3DGS](https://github.com/graphdeco-inria/gau
 ## Citation
 If you find this work helpful, welcome to cite this paper. 
 ```
-@article{surgicalgaussiansurfels2024,
+@InProceedings{Sunmola2024sgs,
   author    = {},
   title     = {SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels},
-  journal   = {},
+  booktitle = {},
   year      = {2024},
 }
 ```
