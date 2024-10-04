@@ -75,7 +75,7 @@ Some source code is borrowed from [3DGS](https://github.com/graphdeco-inria/gau
 ## Citation
 If you find this work helpful, welcome to cite this paper. 
 ```
-@article{xie2024surgicalgaussian,
+@article{surgicalgaussiansurfels2024,
   author    = {},
   title     = {SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels},
   journal   = {},
