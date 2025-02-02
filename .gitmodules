@@ -1,0 +1,15 @@
+[submodule "diff-surfel-rasterization"]
+	path = diff-surfel-rasterization
+	url = https://github.com/hugoycj/diff-surfel-rasterization.git
+[submodule "submodules/diff-surfel-rasterization"]
+	path = submodules/diff-surfel-rasterization
+	url = https://github.com/hugoycj/diff-surfel-rasterization.git
+[submodule "submodules/fused-ssim"]
+	path = submodules/fused-ssim
+	url = https://github.com/rahul-goel/fused-ssim.git
+[submodule "submodules/simple-knn"]
+	path = submodules/simple-knn
+	url = https://github.com/camenduru/simple-knn.git
+[submodule "submodules/omnidata"]
+	path = submodules/omnidata
+	url = https://github.com/EPFL-VILAB/omnidata.git
