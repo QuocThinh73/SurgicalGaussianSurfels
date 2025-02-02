@@ -23,19 +23,23 @@ pip install -e submodules/simple-knn
 
 ## 💿 Dataset
 **EndoNeRF Dataset:**  
-The dataset from [EndoNeRF](https://github.com/med-air/EndoNeRF) is used, which can be downloaded from their website. We use the clips 'pulling_soft_tissues' and 'cutting_tissues_twice'.
+Visit [EndoNeRF](https://github.com/med-air/EndoNeRF) to download their dataset. We make use of frames from `pulling_soft_tissues` and `cutting_tissues_twice` in our experiments.
 
 **StereoMIS Dataset:**  
-The dataset provided in [StereoMIS](https://zenodo.org/records/7727692) is used. We use the clips 'p2-7' and 'p2-8'. The resulted file structure is as follows.
+Visit [StereoMIS](https://zenodo.org/records/7727692) to download their dataset. We make use of frames from `p2-7` and `p2-8`.
+
+We advise user to structure dataset as such:
 ```
 ├── data
 │   | EndoNeRF 
 │     ├── pulling
-│     ├── cutting 
+        ├── pulling_soft_tissues
+│     ├── cutting
+        ├── cutting_tissues_twice
 │   | StereoMIS
 │     ├── intestine
 │     ├── liver
-|     ├── ...
+
 ```
 
 
@@ -68,7 +72,7 @@ python metrics.py -m pull_output/pulling
 Source code is borrowed from  [2DG](https://github.com/hbb1/2d-gaussian-splatting),  [Surfels](https://github.com/turandai/gaussian_surfels),  [3DGS](https://github.com/graphdeco-inria/gaussian-splatting), [4DGS](https://github.com/hustvl/4DGaussians), and [Deformable-3D-Gaussian](https://github.com/ingra14m/Deformable-3D-Gaussians/tree/main). We appreciate your fine work.
 
 
-## Citation
+## 📜 Citation
 If you find this work helpful, welcome to cite this paper. 
 ```
 @InProceedings{Sunmola2025sgs,
