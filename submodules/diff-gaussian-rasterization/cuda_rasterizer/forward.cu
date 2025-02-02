@@ -121,7 +121,7 @@ __device__ void computeCov3D(const glm::vec3 scale, float mod, const glm::vec4 r
   glm::mat3 S = glm::mat3(1.0f);
   S[0][0] = mod * scale.x;
   S[1][1] = mod * scale.y;
-  S[2][2] = 0;//mod * scale.z;
+  S[2][2] = 1e-20;//mod * scale.z;
 
   // Normalize quaternion to get valid rotation
   glm::vec4 q = rot;// / glm::length(rot);

@@ -19,10 +19,9 @@ tensorboard_3d
 /submodules/diff_gaussian_rasterization/*.sh
 /submodules/diff_gaussian_rasterization/.vscode/
 /submodules/diff-gaussian-rasterization/build
-
+/.idea
 /submodules/diff-gaussian-rasterization/diff_gauss.egg-info/dependency_links.txt
 /submodules/diff-gaussian-rasterization/dist
 /submodules/diff-gaussian-rasterization/diff_gauss.egg-info
-/.idea/SurgicalGaussian.iml
 /submodules/simple-knn/build
 /submodules/simple-knn/simple_knn/_C*

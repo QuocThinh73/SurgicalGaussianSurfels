@@ -32,7 +32,7 @@ def quaternion_multiply(q1, q2):
 
 
 def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_xyz, d_rotation, d_scaling,
-           scaling_modifier=1.0, override_color=None):
+           scaling_modifier=1.0, override_color=None, extra_attrs=None):
     """
     Render the scene. 
     
@@ -109,7 +109,6 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
     #     rotations=rotations,
     #     cov3D_precomp=cov3D_precomp)
 
-    val = torch.empty(0, 3, device='cuda:0', requires_grad=False)
 
     rendered_image, rendered_depth, rendered_norm, rendered_alpha, radii, extra = rasterizer(
         means3D=means3D,
@@ -120,7 +119,7 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, d_
         scales=scales,
         rotations=rotations,
         cov3Ds_precomp=cov3D_precomp,
-        extra_attrs=val
+        extra_attrs=extra_attrs,
     )
 
 

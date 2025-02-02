@@ -69,7 +69,7 @@ class ModelParams(ParamGroup):
         self.is_mask = False
         self.depth_initial = False
         self.accurate_mask = False
-        self.mono_normal = False #change back to true
+        self.mono_normal = True #change back to true
 
         super().__init__(parser, "Loading Parameters", sentinel)
 

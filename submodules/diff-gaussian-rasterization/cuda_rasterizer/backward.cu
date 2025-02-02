@@ -295,7 +295,7 @@ __device__ void computeCov3D(int idx, const glm::vec3 scale, float mod, const gl
   glm::vec3 s = mod * scale;
   S[0][0] = s.x;
   S[1][1] = s.y;
-  S[2][2] = 0;//s.z;
+  S[2][2] = 1e-20;//mod * scale.z;
 
   glm::mat3 M = S * R;
 

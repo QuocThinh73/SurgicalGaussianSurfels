@@ -107,8 +107,8 @@ def def_reg_loss(gs_can, d_xyz, d_rotation, d_scaling, K=5):
     return loss_pos, loss_cov
 
 
-# Load VGG16 with frozen weights, using the first 12 layers
-vgg = models.vgg16(pretrained=True).features[:12].cuda().eval()
+# Load VGG16 with frozen weights, using the first 5 layers
+vgg = models.vgg16(pretrained=True).features[:5].cuda().eval()
 
 # Freeze VGG weights to avoid unnecessary gradient computations
 for param in vgg.parameters():
@@ -126,10 +126,10 @@ def perceptual_loss(pred, gt):
     pred_resized = F.interpolate(pred, size=(256, 256))  # (N, C, 256, 256)
     gt_resized = F.interpolate(gt, size=(256, 256))  # (N, C, 256, 256)
 
-    with amp.autocast():
-        # Extract features using VGG
-        pred_features = vgg(pred_resized)
-        gt_features = vgg(gt_resized)
+    #with amp.autocast():
+    # Extract features using VGG
+    pred_features = vgg(pred_resized)
+    gt_features = vgg(gt_resized)
 
     loss = F.mse_loss(pred_features, gt_features)  # Use L1 loss
     return loss

@@ -73,6 +73,18 @@ def get_all_initial_data_endo(path, data_type, depth_scale, is_mask, npy_file):
 
         depth_path = depths_path[i]
         depth_image = np.array(imread(depth_path) * 1.0)
+
+        # Handle colored depth images
+        if depth_image.ndim == 3:
+            # Check if the image has an alpha channel (RGBA)
+            if depth_image.shape[2] == 4:
+                # Remove the alpha channel
+                depth_image = depth_image[:, :, :3]
+
+            # Convert the RGB depth image to grayscale
+            # Using the luminosity method
+            depth_image = np.dot(depth_image[..., :3], [0.2989, 0.5870, 0.1140])
+
         depth_image = depth_image / depth_scale
         near = np.percentile(depth_image, 3)
         far = np.percentile(depth_image, 98)
