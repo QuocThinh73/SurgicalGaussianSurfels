@@ -104,7 +104,7 @@ class OptimizationParams(ParamGroup):
         self.lambda_dssim = 0.2
         self.lambda_smooth = 0.006 #0.02
         self.lambda_photometric = 0.7
-        self.lambda_perceptual = 1.0
+        self.lambda_perceptual = 1
         self.lambda_cov = 200.0
         self.lambda_pos = 1.0
         self.lambda_dist = 0.01
@@ -128,7 +128,7 @@ class OptimizationParams(ParamGroup):
         self.pixel_dense_from_iter = 30000
         
         self.contribution_prune_from_iter = 500
-        self.contribution_prune_interval = 500
+        self.contribution_prune_interval = 400
         self.contribution_prune_ratio = 0.1
 
 

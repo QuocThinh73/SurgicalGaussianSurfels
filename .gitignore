@@ -27,4 +27,4 @@ tensorboard_3d
 /submodules/simple-knn/simple_knn/_C*
 /.idea
 /submodules/omnidata_models
-
+.gitmodules

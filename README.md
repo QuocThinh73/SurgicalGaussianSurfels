@@ -2,7 +2,7 @@
 
 ### [Project Page](https://ericzzj1989.github.io/sgs)
 
-## Environment
+## 🏔️ Environment
 Please follow the [3D-GS](https://github.com/graphdeco-inria/gaussian-splatting) and [4DGS](https://github.com/hustvl/4DGaussians) to install the relative packages.
 ```bash
 git clone https://github.com/xwx0924/SurgicalGaussian.git
@@ -21,7 +21,7 @@ pip install -e submodules/depth-diff-gaussian-rasterization
 pip install -e submodules/simple-knn
 ```
 
-## Dataset
+## 💿 Dataset
 **EndoNeRF Dataset:**  
 The dataset from [EndoNeRF](https://github.com/med-air/EndoNeRF) is used, which can be downloaded from their website. We use the clips 'pulling_soft_tissues' and 'cutting_tissues_twice'.
 
@@ -39,42 +39,42 @@ The dataset provided in [StereoMIS](https://zenodo.org/records/7727692) is used.
 ```
 
 
-## Training
-For surgical scene `pulling_soft_tissues`, run 
+## ⏳ Training
+To train a model on the EndoNerf `pulling` dataset, run 
 ``` 
-python train.py -s data/EndoNeRF/pulling -m output/pulling --config arguments/endonerf/pulling.py 
+python train.py -s data/EndoNeRF/pulling/pulling_soft_tissues -m pull_output/pulling --config arguments/endonerf/pulling.py 
 ``` 
 
-## Rendering
-Run the following script to render the images.  
+## ✏️ Rendering
+Run this script to render the images.  
 
 ```
-python render.py -m output/pulling
+python render.py -m pull_output/pulling
 ```
 
 
-## Evaluation
-Run the following script to evaluate the model.  
+## 🔎 Evaluation
+Run this script to evaluate the model.  
 
 ```
-python metrics.py -m output/pulling
+python metrics.py -m pull_output/pulling
 ```
 
 ---
-## Acknowledgement
+## 👍🏿 Acknowledgement
 
 
 
-Some source code is borrowed from [3DGS](https://github.com/graphdeco-inria/gaussian-splatting), [4DGS](https://github.com/hustvl/4DGaussians), and [Deformable-3D-Gaussian](https://github.com/ingra14m/Deformable-3D-Gaussians/tree/main). Thanks for their excellent code.
+Source code is borrowed from  [2DG](https://github.com/hbb1/2d-gaussian-splatting),  [Surfels](https://github.com/turandai/gaussian_surfels),  [3DGS](https://github.com/graphdeco-inria/gaussian-splatting), [4DGS](https://github.com/hustvl/4DGaussians), and [Deformable-3D-Gaussian](https://github.com/ingra14m/Deformable-3D-Gaussians/tree/main). We appreciate your fine work.
 
 
 ## Citation
 If you find this work helpful, welcome to cite this paper. 
 ```
-@InProceedings{Sunmola2024sgs,
-  author    = {},
+@InProceedings{Sunmola2025sgs,
+  author    = {Idris Sunmola},
   title     = {SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels},
   booktitle = {},
-  year      = {2024},
+  year      = {2025},
 }
 ```

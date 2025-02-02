@@ -111,7 +111,7 @@ def def_reg_loss(gs_can, d_xyz, d_rotation, d_scaling, K=5):
 
 
 # Load VGG16 with frozen weights, using the first 19 layers
-vgg = models.vgg16(pretrained=True).features[:2].cuda().eval()
+vgg = models.vgg16(pretrained=True).features[:1].cuda().eval()
 
 # Freeze VGG weights to avoid unnecessary gradient computations
 for param in vgg.parameters():
@@ -130,8 +130,8 @@ def perceptual_loss(pred, gt):
     gt1 = F.interpolate(gt, size=(256, 256))  # .to(torch.float)  # (N, C, 256, 256)
 
 
-    pred_features = vgg(pred)
-    gt_features = vgg(gt)
+    pred_features = vgg(pred1)
+    gt_features = vgg(gt1)
 
 
     loss = F.l1_loss(pred_features, gt_features)  # + lpips_loss
@@ -166,33 +166,6 @@ def multi_scale_gradient_loss(pred, target, mask=None, num_scales=4):
                 current_mask = F.avg_pool2d(current_mask, 2)
                 
     return loss / num_scales
-
-
-def l1_loss_appearance(image, gt_image, appearances, view_idx):
-    if appearances is None:
-        return l1_loss(image, gt_image)
-    else:
-        appearance_embedding = appearances.get_embedding(view_idx)
-        # center crop the image
-        origH, origW = image.shape[1:]
-        H = origH // 32 * 32
-        W = origW // 32 * 32
-        left = origW // 2 - W // 2
-        top = origH // 2 - H // 2
-        crop_image = image[:, top:top + H, left:left + W]
-        crop_gt_image = gt_image[:, top:top + H, left:left + W]
-
-        # down sample the image
-        crop_image_down = \
-        torch.nn.functional.interpolate(crop_image[None], size=(H // 32, W // 32), mode="bilinear", align_corners=True)[
-            0]
-
-        crop_image_down = \
-        torch.cat([crop_image_down, appearance_embedding[None].repeat(H // 32, W // 32, 1).permute(2, 0, 1)], dim=0)[
-            None]
-        mapping_image = appearances.appearance_network(crop_image_down)
-        transformed_image = mapping_image * crop_image
-        return l1_loss(transformed_image, crop_gt_image)
 
 
 
