@@ -2,23 +2,26 @@
 
 ### [Project Page](https://ericzzj1989.github.io/sgs)
 
+_____________________________________________________
+![introduction](assets/DIAGRAM_.png)
+
 ## 🏔️ Environment
-Please follow the [3D-GS](https://github.com/graphdeco-inria/gaussian-splatting) and [4DGS](https://github.com/hustvl/4DGaussians) to install the relative packages.
+Please follow the steps below to install dependencies to properly run this repo.
+
+Note: For a smooth install, make sure cudatoolkit 11.8 is native to your device. Check with `nvcc --version`
+
 ```bash
-git clone https://github.com/xwx0924/SurgicalGaussian.git
+git clone --recurse-submodules https://github.com/aloma85/SurgicalGaussianSurfels.git
 cd SurgicalGaussianSurfels
 
-conda create -n SurgicalGaussianSurfels python=3.7 
+# install install dependencies then activate.
+conda env create -f environment.yml
 conda activate SurgicalGaussianSurfels
 
-# install pytorch and others.
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
-pip install -r requirements.txt
-# You also need to install the pytorch3d library to compute Gaussian neighborhoods.
-
-# You can follow 4DGS to download depth-diff-gaussian-rasterization and simple-knn.
-pip install -e submodules/depth-diff-gaussian-rasterization  
-pip install -e submodules/simple-knn
+# List conda-installed packages
+conda list
+# Or list pip-installed packages
+pip list
 ```
 
 ## 💿 Dataset

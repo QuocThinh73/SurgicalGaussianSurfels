@@ -1,0 +1,39 @@
+name: SurgicalGaussianSurfels
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - cudatoolkit=11.8
+  - pip
+  - pip:
+      # (1) Use PyTorch wheels from the official CUDA 11.8 index
+      - --extra-index-url https://download.pytorch.org/whl/cu118
+      - torch==2.1.2
+      - torchvision==0.16.2
+      - torchaudio==2.1.2
+
+      # (2) Local/Editable installs of your submodule repos
+      - -e submodules/diff-surfel-rasterization
+      - -e submodules/simple-knn
+      - -e submodules/fused-ssim
+
+      # (3) Additional Python dependencies
+      - plyfile==0.8.1
+      - tqdm
+      - git+https://github.com/facebookresearch/pytorch3d.git
+      - matplotlib
+      - scikit-image
+      - mmcv-full
+      - pymeshlab
+      - ninja
+      - git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+      - numpy==1.25.2
+      - h5py
+      - pytorch-lightning
+      - imageio==2.27.0
+      - opencv-python
+      - imageio-ffmpeg
+      - scipy
+      - dearpygui
+      - lpips
