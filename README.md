@@ -80,7 +80,7 @@ Source code is borrowed from  [2DG](https://github.com/hbb1/2d-gaussian-splatti
 If you find this work helpful, welcome to cite this paper. 
 ```
 @InProceedings{Sunmola2025sgs,
-  author    = {Idris Sunmola},
+  author    = {Sunmola, Idris and Zhao, Zhenjun and Schmidgall, Samuel and Wang, Yumneg and Mari Scheikl, Paul and Krieger, Axel},
   title     = {SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels},
   booktitle = {},
   year      = {2025},
