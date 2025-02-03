@@ -5,7 +5,7 @@ import glob
 import torch
 import warnings
 from torch.utils.data import Dataset
-from dataset.transforms import ResizeStereo
+from stereoMIS_dataset.transforms import ResizeStereo
 from typing import Tuple
 
 

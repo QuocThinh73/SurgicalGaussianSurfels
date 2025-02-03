@@ -174,7 +174,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         mask_vis = (alpha.detach() > 1e-5)
         # normal1 = torch.nn.functional.normalize(norm, dim=0) * mask_vis
-        # mono = viewpoint_cam.mono if dataset.mono_normal else None
+        # mono = viewpoint_cam.mono if stereoMIS_dataset.mono_normal else None
 
         # regularization
         lambda_normal = opt.lambda_normal if iteration > 43500 else 0.0
@@ -383,7 +383,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             #         print(f'Num gs after contribution prune: {len(gaussians.get_xyz)}')
 
             #     if iteration % opt.opacity_reset_interval == 0 or (
-            #             dataset.white_background and iteration == opt.densify_from_iter):
+            #             stereoMIS_dataset.white_background and iteration == opt.densify_from_iter):
             #         gaussians.reset_opacity()
             # Densification
             if iteration < opt.densify_until_iter:

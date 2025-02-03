@@ -1,8 +1,8 @@
 import os
 import glob
-from dataset.video_dataset import StereoVideoDataset
-from dataset.stereo_dataset import StereoDataset
-from dataset.rectification import StereoRectifier
+from stereoMIS_dataset.video_dataset import StereoVideoDataset
+from stereoMIS_dataset.stereo_dataset import StereoDataset
+from stereoMIS_dataset.rectification import StereoRectifier
 from typing import Tuple
 from torch.utils.data import Sampler
 
@@ -39,7 +39,7 @@ class SequentialSubSampler(Sampler):
     """
     Samples elements sequentially, always in the same order with a defined subsampling step.
 
-        :param data_source: dataset to sample from
+        :param data_source: stereoMIS_dataset to sample from
         :param step: subsample step
     """
 

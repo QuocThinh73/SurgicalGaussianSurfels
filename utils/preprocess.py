@@ -1,4 +1,4 @@
-# @title Configure dataset directories
+# @title Configure stereoMIS_dataset directories
 import os
 from pathlib import Path
 

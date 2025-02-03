@@ -9,7 +9,7 @@ from typing import Tuple
 import cv2
 
 from core.utils.trajectory import read_freiburg
-from dataset.rectification import StereoRectifier
+from stereoMIS_dataset.rectification import StereoRectifier
 
 
 def get_data(config: dict, img_size: Tuple, depth_cutoff: float):
@@ -39,13 +39,13 @@ def get_data(config: dict, img_size: Tuple, depth_cutoff: float):
         intrinsics.append(calib['intrinsics']['left'].astype(np.float32))
 
     # glob data
-    # for nested scared dataset
+    # for nested scared stereoMIS_dataset
     ds = [sorted(glob(os.path.join(config['basepath'], s, 'keyframe_*'))) for s in config['sequences']]
     # others
     if len(ds[0]) == 0:
         ds = [[os.path.join(config['basepath'], s)] for s in config['sequences']]
 
-    # generate multi-sequence dataset
+    # generate multi-sequence stereoMIS_dataset
     subsets = []
     for i, s in enumerate(config['sequences']):
         for d in ds[i]:

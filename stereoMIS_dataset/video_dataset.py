@@ -2,12 +2,12 @@ import cv2
 import os
 import json
 from torch.utils.data import IterableDataset
-from dataset.transforms import ResizeStereo, Compose
+from stereoMIS_dataset.transforms import ResizeStereo, Compose
 from typing import Tuple, Callable
 import numpy as np
 import torch
 from core.utils.trajectory import read_freiburg
-from dataset.stereo_dataset import mask_specularities
+from stereoMIS_dataset.stereo_dataset import mask_specularities
 from lietorch import SE3
 
 
