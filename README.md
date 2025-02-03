@@ -23,6 +23,7 @@ conda list
 # Or list pip-installed packages
 pip list
 ```
+Note: If having issues with .yml file, look in `dependencies.txt` to install packages manually
 
 ## 💿 Dataset
 **EndoNeRF Dataset:**  

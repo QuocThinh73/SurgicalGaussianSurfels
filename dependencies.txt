@@ -1,0 +1,27 @@
+conda create -n SurgicalGaussianSurfels python=3.9
+conda activate SurgicalGaussianSurfels
+conda install cudatoolkit=11.8
+pip install plyfile==0.8.1
+pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
+pip install tqdm
+pip install -e submodules/diff-surfel-rasterization
+pip install -e submodules/simple-knn
+pip install -e submodules/fused-ssim
+pip install "git+https://github.com/facebookresearch/pytorch3d.git"
+pip install matplotlib
+pip install scikit-image
+pip install mmcv-full
+pip install pymeshlab
+pip install ninja
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install --force-reinstall -v "numpy==1.25.2"
+pip install h5py
+pip install pytorch-lightning
+pip install plyfile==0.8.1
+pip install tqdm
+pip install imageio==2.27.0
+pip install opencv-python
+pip install imageio-ffmpeg
+pip install scipy
+pip install dearpygui
+pip install lpips
