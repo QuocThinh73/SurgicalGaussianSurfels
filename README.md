@@ -14,13 +14,13 @@ Note: For a smooth install, make sure cudatoolkit 11.8 is native to your device.
 git clone --recurse-submodules https://github.com/aloma85/SurgicalGaussianSurfels.git
 cd SurgicalGaussianSurfels
 
-# install install dependencies then activate.
+# install dependencies then activate.
 conda env create -f environment.yml
 conda activate SurgicalGaussianSurfels
 
-# List conda-installed packages
+# List conda-installed packages (Optional)
 conda list
-# Or list pip-installed packages
+# Or list pip-installed packages (Optional)
 pip list
 ```
 Note: If having issues with .yml file, look in `dependencies.txt` to install packages manually

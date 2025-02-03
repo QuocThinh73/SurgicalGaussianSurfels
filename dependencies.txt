@@ -17,8 +17,6 @@ pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindi
 pip install --force-reinstall -v "numpy==1.25.2"
 pip install h5py
 pip install pytorch-lightning
-pip install plyfile==0.8.1
-pip install tqdm
 pip install imageio==2.27.0
 pip install opencv-python
 pip install imageio-ffmpeg
