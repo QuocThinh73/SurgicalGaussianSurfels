@@ -1,6 +1,6 @@
 # SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels
 
-### [Project Page](https://ericzzj1989.github.io/sgs)
+[//]: # (### [Project Page]&#40;https://ericzzj1989.github.io/sgs&#41;)
 
 _____________________________________________________
 ![introduction](assets/DIAGRAM_.png)
@@ -17,6 +17,9 @@ cd SurgicalGaussianSurfels
 # install dependencies then activate.
 conda env create -f environment.yml
 conda activate SurgicalGaussianSurfels
+
+pip install "git+https://github.com/facebookresearch/pytorch3d.git"
+pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
 # List conda-installed packages (Optional)
 conda list

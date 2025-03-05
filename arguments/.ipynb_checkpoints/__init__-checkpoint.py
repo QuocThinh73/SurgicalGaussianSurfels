@@ -109,7 +109,7 @@ class OptimizationParams(ParamGroup):
         self.lambda_pos = 1.0
         self.lambda_dist = 0.01
         self.lambda_normal = 0.0001
-        self.opacity_cull = 0.05
+        self.opacity_cull = 0.005
 
         
         self.split_interval = 500

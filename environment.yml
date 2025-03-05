@@ -21,14 +21,13 @@ dependencies:
       # (3) Additional Python dependencies
       - plyfile==0.8.1
       - tqdm
-      - git+https://github.com/facebookresearch/pytorch3d.git
       - matplotlib
       - scikit-image
       - mmcv-full
       - pymeshlab
       - ninja
-      - git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
       - numpy==1.25.2
+      - timm
       - h5py
       - pytorch-lightning
       - imageio==2.27.0

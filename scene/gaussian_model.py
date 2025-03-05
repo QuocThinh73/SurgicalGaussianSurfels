@@ -44,7 +44,7 @@ class GaussianModel:
         self.max_radii2D = torch.empty(0)
         self.max_weight = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
-        self.xyz_gradient_accum_abs = torch.empty(0)
+        #self.xyz_gradient_accum_abs = torch.empty(0)
         self.denom = torch.empty(0)
 
         self.optimizer = None
