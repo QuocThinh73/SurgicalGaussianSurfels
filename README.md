@@ -1,7 +1,6 @@
 # SurgicalGaussianSurfels: Highly Accurate Surgical Surface Reconstruction Using Gaussian Surfels
 
 [//]: # (### [Project Page]&#40;https://ericzzj1989.github.io/sgs&#41;)
-
 _____________________________________________________
 ![introduction](assets/DIAGRAM_.png)
 
