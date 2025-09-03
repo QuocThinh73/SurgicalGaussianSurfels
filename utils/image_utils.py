@@ -14,6 +14,8 @@ import numpy as np
 from utils.graphics_utils import fov2focal
 from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
+import cv2
+import imageio
 
 
 def mse(img1, img2):
@@ -185,3 +187,51 @@ def linear_match(d0, d1, mask, patch_size):
     d0_r = d0[:, :, patch_dim[1] * patch_size:]
     d0_ = torch.cat([d0_, d0_r], 2)
     return d0_
+
+def compute_depth_boundary_mask(depth, threshold_ratio=0.5, ksize=5, open_ksize=3):
+    """
+    Compute a binary mask where True indicates reliable (non-boundary) pixels in the depth map.
+    """
+    error = cv2.Laplacian(depth, cv2.CV_64F, ksize=ksize)
+    error = np.abs(error)
+    threshold = np.median(depth[depth > 0]) * threshold_ratio
+    _, mask = cv2.threshold(error, threshold, 1, cv2.THRESH_BINARY)
+    mask = mask < 0.5  # True for valid, False for boundary
+    ellip_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_ksize, open_ksize))
+    mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, ellip_kernel) > 0
+    return mask
+
+
+def get_sharp_depth(depth, mask):
+    """
+    Return a sharp depth map where invalid (boundary) pixels are set to zero.
+    """
+    sharp_depth = depth.copy()
+    sharp_depth[~mask] = 0
+    return sharp_depth
+
+
+def save_mask_and_sharp_depth_outputs(depths, out_dir, prefix="frame", flag=False): 
+    """
+    For a sequence of depth maps, compute and save the depth boundary masks and sharp depth maps as images and a video.
+    """
+    import os
+    os.makedirs(out_dir, exist_ok=True)
+    mask_imgs = []
+    sharp_imgs = []
+    for i, depth in enumerate(depths):
+        mask = compute_depth_boundary_mask(depth)
+        sharp_depth = get_sharp_depth(depth, mask)
+        # Save mask and sharp depth as images
+        mask_img = (mask * 255).astype(np.uint8)
+        sharp_img = (np.clip(sharp_depth / (np.max(sharp_depth) + 1e-6), 0, 1) * 255).astype(np.uint8)
+        mask_path = os.path.join(out_dir, f"{prefix}_{i:04d}_mask.png")
+        sharp_path = os.path.join(out_dir, f"{prefix}_{i:04d}_sharp.png")
+        imageio.imwrite(mask_path, mask_img)
+        imageio.imwrite(sharp_path, sharp_img)
+        mask_imgs.append(mask_img)
+        sharp_imgs.append(sharp_img)
+    # Save as videos
+    if flag:
+        imageio.mimsave(os.path.join(out_dir, f"{prefix}_mask_video.gif"), mask_imgs, duration=0.1)
+        imageio.mimsave(os.path.join(out_dir, f"{prefix}_sharp_video.gif"), sharp_imgs, duration=0.1)

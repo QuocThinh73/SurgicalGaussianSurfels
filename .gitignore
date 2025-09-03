@@ -1,4 +1,4 @@
-output/
+output*/
 pull_output*/
 cut_output*/
 data/
@@ -28,3 +28,72 @@ tensorboard_3d
 /.idea
 /submodules/omnidata_models
 .gitmodules
+/WACV_SGS/
+
+
+# CUDA MLP build artifacts
+cuda_mlp/build/
+cuda_mlp/*.so
+cuda_mlp/CMakeCache.txt
+cuda_mlp/CMakeFiles/
+cuda_mlp/cmake_install.cmake
+cuda_mlp/Makefile
+
+# Test outputs
+test_cuda_mlp_output/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.out
+
+# Test and example files
+test_*.py
+*_test.py
+example_*.py
+*_example.py
+test_*.sh
+*_test.sh
+*.tex
+*.sh
+
+# Text files (documentation, notes, etc.)
+*.txt
+!requirements.txt
+!README.txt
+
+# Image files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.pdf
+!logo.png
+!icon.png
+
+# Comparison and output images
+*_comparison.png
+*_comparison.jpg
+*_comparison.jpeg
+*_comparison.pdf
+*_output.png
+*_output.jpg
+*_output.jpeg
+*_output.pdf
+
+# Python cache and notebook checkpoints
+*/__pycache__/
+__pycache__/
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Dataset and output folders (should not be pushed)
+StereoMIS/
+obias/
+WACV_SGS.zip
+obias.zip
+

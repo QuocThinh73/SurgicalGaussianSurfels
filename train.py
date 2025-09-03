@@ -19,19 +19,23 @@ from utils.loss_utils import l1_loss, ssim, tv_loss, def_reg_loss, perceptual_lo
     edge_aware_smoothness_loss, multi_scale_gradient_loss, l1_loss_appearance
 from gaussian_renderer import render, network_gui
 import sys
-from scene import Scene, GaussianModel, DeformModel
+from scene import Scene, GaussianModel, BgGaussianModel, DeformModel
 from utils.general_utils import safe_state, get_linear_noise_func
 import uuid
 from tqdm import tqdm
 from utils.image_utils import psnr, depth2normal, normal2rgb, normal2curv, depth2rgb
-from utils.initial_utils import imread
+from utils.initial_utils import imread, process_depth_sequence_and_save
 from argparse import ArgumentParser, Namespace
-from arguments import ModelParams, PipelineParams, OptimizationParams
+from arguments import ModelParams, OptimizationParams, PipelineParams
 from utils.loss_utils import cos_loss
 from torchvision.utils import save_image
 import torch.nn.functional as F
 import numpy as np
 from PIL import Image
+from utils.camera_utils import cameraList_from_camInfos
+import torchvision.utils
+import torch.utils.tensorboard
+import lpips
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -95,15 +99,21 @@ def normal_gradient_loss(rend_normal, gt_normal):
     return loss_x + loss_y
 
 
-def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint):
+def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, args):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
-    deform = DeformModel()
+    
+    # Create deformation model based on MLP flags
+    from scene.deform_model import DeformModel
+    deform = DeformModel(use_cutlass=args.cutlassMLP, use_fullyfused=args.fullyfusedMLP)
+
+    
     deform.train_setting(opt)
 
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
+
 
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -138,6 +148,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         appearances.training_setup(opt)
     else:
         appearances = None
+
+    # Adjust lambda_smooth for FullyFusedMLP if needed
+    if hasattr(args, 'fullyfusedMLP') and args.fullyfusedMLP:
+        print("[INFO] Using FullyFusedMLP: Increasing lambda_smooth for more aggressive inpainting.")
+        opt.lambda_smooth = opt.lambda_smooth * 2.0  # Increase by a factor of 2 (adjust as needed)
 
     for iteration in range(1, opt.iterations + 1):
 
@@ -210,6 +225,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             gt_image = gt_image * mask
 
             if dataset.accurate_mask:
+                # Move inpaint_mask_tensor to the same device as image
+                inpaint_mask_tensor = inpaint_mask_tensor.to(image.device)
                 img_tv_loss = tv_loss(image * inpaint_mask_tensor)
                 depth_tvloss = tv_loss(depth)
             else:
@@ -233,7 +250,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             loss += 0.001 * depth_loss
 
         # Perceptual loss
-        perceptual_loss_val = perceptual_loss(image, gt_image)
+        # Get the image name for loading pre-extracted DINO features
+        gt_image_name = viewpoint_cam.image_name if hasattr(viewpoint_cam, 'image_name') else None
+        dino_feature_dir = getattr(dataset, 'dino_feature_dir', "")
+        
+        # Only use pre-extracted features if directory is specified
+        if dino_feature_dir and dino_feature_dir.strip():
+            perceptual_loss_val = perceptual_loss(image, gt_image, gt_image_name, opt.dino_feature_dir)
+        else:
+            perceptual_loss_val = perceptual_loss(image, gt_image)
+        
         loss += opt.lambda_perceptual * perceptual_loss_val
 
         # deformation loss
@@ -284,7 +310,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # Log and save
             cur_psnr = training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
                                        testing_iterations, scene, render, (pipe, background), deform,
-                                       dataset.load2gpu_on_the_fly, depth_loss)
+                                       dataset.load2gpu_on_the_fly, depth_loss, args)
             if iteration in testing_iterations:
                 if cur_psnr.item() > best_psnr:
                     best_psnr = cur_psnr.item()
@@ -386,11 +412,38 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             #             stereoMIS_dataset.white_background and iteration == opt.densify_from_iter):
             #         gaussians.reset_opacity()
             # Densification
-            if iteration < opt.densify_until_iter:
-                gaussians.max_radii2D[visibility_filter] = torch.max(
-                    gaussians.max_radii2D[visibility_filter],
-                    radii[visibility_filter] * (render_pkg["transmittance_avg"][visibility_filter] > 0.01)
-                )
+            # Use custom densification parameters if available (for FullyFusedMLP)
+            densify_until_iter = getattr(deform, 'custom_densify_until_iter', None)
+            if densify_until_iter is None:
+                densify_until_iter = opt.densify_until_iter
+                
+            densify_grad_threshold = getattr(deform, 'custom_densify_grad_threshold', None)
+            if densify_grad_threshold is None:
+                densify_grad_threshold = opt.densify_grad_threshold
+                
+            densification_interval = getattr(deform, 'custom_densification_interval', None)
+            if densification_interval is None:
+                densification_interval = opt.densification_interval
+            
+            # Debug output for custom parameters (only print once)
+            if iteration == 1 and hasattr(deform, 'custom_densify_grad_threshold'):
+                print(f"Using custom densification parameters for FullyFusedMLP:")
+                print(f"  grad_threshold: {densify_grad_threshold} (vs default {opt.densify_grad_threshold})")
+                print(f"  until_iter: {densify_until_iter} (vs default {opt.densify_until_iter})")
+                print(f"  interval: {densification_interval} (vs default {opt.densification_interval})")
+            
+            if iteration < densify_until_iter:
+                # if iteration == 16000:
+                #     print(f"Type of gaussians.max_radii2D: {type(gaussians.max_radii2D)}")
+                #     print(f"Type of radii: {type(radii)}")
+                #     print(f"Type of render_pkg['transmittance_avg']: {type(render_pkg['transmittance_avg'])}")
+                #     print(f"Type of visibility_filter: {type(visibility_filter)}")
+                # Only update max_radii2D if transmittance_avg is available
+                if render_pkg["transmittance_avg"] is not None:
+                    gaussians.max_radii2D[visibility_filter] = torch.max(
+                        gaussians.max_radii2D[visibility_filter],
+                        radii[visibility_filter] * (render_pkg["transmittance_avg"][visibility_filter] > 0.01)
+                    )
                 gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter, None)
 
                 # Adjust time input once based on the current number of Gaussians
@@ -398,9 +451,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
                 if iteration > opt.densify_from_iter:
                     # Densify and prune
-                    if iteration % opt.densification_interval == 0:
+                    if iteration % densification_interval == 0:
                         prune_big_points = iteration > opt.opacity_reset_interval
-                        gaussians.densify_and_prune(opt.densify_grad_threshold, opt.opacity_cull, scene.cameras_extent,
+                        gaussians.densify_and_prune(densify_grad_threshold, opt.opacity_cull, scene.cameras_extent,
                                                     prune_big_points)
                         # Update time input after densification
                         time_input = fid.unsqueeze(0).expand(gaussians.get_xyz.shape[0], -1)
@@ -478,7 +531,7 @@ def read_config_params(args, config):
 
 
 def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene: Scene, renderFunc,
-                    renderArgs, deform, load2gpu_on_the_fly, depth_loss=None):
+                    renderArgs, deform, load2gpu_on_the_fly, depth_loss=None, args=None):
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
 
@@ -561,13 +614,23 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--config", type=str, default="")
 
+
+
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[10000, 20000, 40000])
     parser.add_argument("--start_checkpoint", type=str, default=None)
+    parser.add_argument("--cutlassMLP", action="store_true", default=False, 
+                       help="Use tiny-cuda-nn CutlassMLP for deformation network (faster training/inference)")
+    parser.add_argument("--fullyfusedMLP", action="store_true", default=False, 
+                       help="Use tiny-cuda-nn FullyFusedMLP for deformation network (fastest, 128 neurons)")
 
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     config = mmcv.Config.fromfile(args.config)
     args = read_config_params(args, config)
+
+    # Ensure only one MLP type is selected
+    if args.cutlassMLP and args.fullyfusedMLP:
+        raise ValueError("Cannot use both --cutlassMLP and --fullyfusedMLP at the same time.")
 
     print("Optimizing " + args.model_path)
 
@@ -577,8 +640,21 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     # network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
+
+    # After loading depth maps (assume variable is 'depths', a list or array of depth maps)
+    # and after determining the output/model directory (assume variable is 'model_dir')
+    #
+    # Insert this logic:
+    #
+    # output_dir = os.path.join(model_dir, 'depth_boundary_outputs')
+    # sharp_depths, masks = process_depth_sequence_and_save(depths, output_dir)
+    #
+    # Use sharp_depths and masks for all further processing instead of raw depths.
+    #
+    # (If depths are loaded in a function, add this logic immediately after loading.)
+
     training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations,
-             args.checkpoint_iterations, args.start_checkpoint)
+             args.checkpoint_iterations, args.start_checkpoint, args)
 
     # All done
     print("\nTraining complete.")

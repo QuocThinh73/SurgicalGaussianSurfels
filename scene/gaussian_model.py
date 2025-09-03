@@ -20,7 +20,8 @@ from utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
-import tinycudann as tcnn
+#import tinycudann as tcnn
+from utils.initial_utils import process_depth_sequence_and_save
 
 class GaussianModel:
     def __init__(self, sh_degree: int):
@@ -558,3 +559,15 @@ class BgGaussianModel(GaussianModel):
         ]
 
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
+
+# After loading depth maps (assume variable is 'depths', a list or array of depth maps)
+# and after determining the output/model directory (assume variable is 'model_dir')
+#
+# Insert this logic:
+#
+# output_dir = os.path.join(model_dir, 'depth_boundary_outputs')
+# sharp_depths, masks = process_depth_sequence_and_save(depths, output_dir)
+#
+# Use sharp_depths and masks for all further optimization/model steps instead of raw depths.
+#
+# (If depths are loaded in a function, add this logic immediately after loading.)

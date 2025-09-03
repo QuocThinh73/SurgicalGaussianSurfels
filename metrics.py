@@ -23,6 +23,7 @@ from tqdm import tqdm
 from utils.image_utils import psnr
 from utils.image_utils import mse
 from argparse import ArgumentParser
+from utils.initial_utils import process_depth_sequence_and_save
 
 
 def readImages(renders_dir, gt_dir, masks_dir):
@@ -124,8 +125,11 @@ def evaluate(model_paths):
                     depth_dir = method_dir / "depth"
                     depths, gt_depths, depth_names = read_depth_Images(depth_dir, gt_depth_dir)
 
-                    for idx in tqdm(range(len(depths)), desc="Depth_psnr metric evaluation progress"):
-                        Depth_psnrs.append(psnr(depths[idx], gt_depths[idx]))
+                    output_dir = os.path.join(scene_dir, 'depth_boundary_outputs')
+                    sharp_depths, masks = process_depth_sequence_and_save(depths, output_dir, flag=True)
+
+                    for idx in tqdm(range(len(sharp_depths)), desc="Depth_psnr metric evaluation progress"):
+                        Depth_psnrs.append(psnr(sharp_depths[idx], gt_depths[idx]))
                     print("  Depth_psnr : {:>12.7f}".format(torch.tensor(Depth_psnrs).mean(), ".5"))
                     full_dict[scene_dir][method].update({"Depth_psnr": torch.tensor(Depth_psnrs).mean().item()})
                     per_view_dict[scene_dir][method].update(

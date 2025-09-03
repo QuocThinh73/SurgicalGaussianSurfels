@@ -7,6 +7,7 @@ ModelParams = dict(
     depth_initial=True,
     accurate_mask=True,
     is_depth=True,
+    dino_feature_dir="",
 )
 
 OptimizationParams = dict(

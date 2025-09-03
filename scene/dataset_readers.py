@@ -26,7 +26,7 @@ from plyfile import PlyData, PlyElement
 from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 
-from utils.initial_utils import get_pointcloud, get_all_initial_data_endo
+from utils.initial_utils import get_pointcloud, get_all_initial_data_endo, process_depth_sequence_and_save
 
 
 class CameraInfo(NamedTuple):
@@ -159,7 +159,11 @@ def readCamerasdavinci(path, data_type, is_depth, depth_scale, is_mask, npy_file
     video_list = i_test if split != 'train' else list(
         set(np.arange(n_cameras)) - set(i_test))
 
-    for i in video_list:
+    # --- Collect all depth images for processing ---
+    all_depths = []
+    all_masks = []
+    frame_indices = []
+    for idx, i in enumerate(video_list):
         c2w = poses[i]
         images_path = video_path[i]
         image_name = Path(images_path).stem
@@ -179,66 +183,100 @@ def readCamerasdavinci(path, data_type, is_depth, depth_scale, is_mask, npy_file
         if is_mask:
             mask_path = masks_path[i]
             mask_image = np.array(imread(mask_path) / 255.0)
-            # mask is 0 or 1
             mask_image = np.where(mask_image > 0.5, 1.0, 0.0)
-            # Convert 0 for tool, 1 for not tool
             mask_image = 1.0 - mask_image
-            if data_type == 'endonerf':
-                mask_image[-12:, :] = 0
+            # if data_type == 'endonerf':
+            #     mask_image[-20:, :] = 0
 
         depth_image = None
         mask_depth = None
         if is_depth:
             depth_path = depths_path[i]
             depth_image = np.array(imread(depth_path) * 1.0)
-
-            # Handle colored depth images
             if depth_image.ndim == 3:
-                # Check if the image has an alpha channel (RGBA)
                 if depth_image.shape[2] == 4:
-                    # Remove the alpha channel
                     depth_image = depth_image[:, :, :3]
-
-                # Convert the RGB depth image to grayscale
-                # Using the luminosity method
                 depth_image = np.dot(depth_image[..., :3], [0.2989, 0.5870, 0.1140])
-
-            # Continue processing the depth image
             depth_image = depth_image / depth_scale
             near = np.percentile(depth_image, 3)
             far = np.percentile(depth_image, 98)
             mask_depth = np.bitwise_and(depth_image > near, depth_image < far)
             if is_mask:
-                # Ensure mask_depth and mask_image have the same shape
                 mask_depth = mask_depth * mask_image
             depth_image = depth_image * mask_depth
+            all_depths.append(depth_image)
+            all_masks.append(mask_depth)
+            frame_indices.append(idx)
+        else:
+            all_depths.append(None)
+            all_masks.append(None)
+            frame_indices.append(idx)
 
-        # Integrate the mono handling here
-        # try:
-        #     monoN = read_monoData(f'{path}/normal/{image_name}_normal.npy')
-        #     try:
-        #         monoD = read_monoData(f'{path}/mono_depth/{image_name}_depth.npy')
-        #     except FileNotFoundError:
-        #         monoD = np.zeros_like(monoN[:1])  # Handle missing depth by using zeros
-        #     mono = np.concatenate([monoN, monoD], 0)  # Concatenate normal and depth maps
-        # except FileNotFoundError:
-        #     mono = None
+    # --- Process all depths to get sharp depths and boundary masks ---
+    if is_depth and len(all_depths) > 0 and all_depths[0] is not None:
+        output_dir = os.path.join(path, 'depth_boundary_outputs')
+        sharp_depths, boundary_masks = process_depth_sequence_and_save(all_depths, output_dir, flag=True)
+    else:
+        sharp_depths, boundary_masks = all_depths, all_masks
+
+    # --- Build cam_infos with sharp depths and boundary masks ---
+    for idx, i in enumerate(video_list):
+        c2w = poses[i]
+        images_path = video_path[i]
+        image_name = Path(images_path).stem
+        n_frames = num_images
+
+        matrix = np.linalg.inv(np.array(c2w))
+        R = np.transpose(matrix[:3, :3])
+        T = matrix[:3, 3]
+
+        image = Image.open(images_path)
+        cx, cy = W / 2, H / 2
+        principal_point_ndc = (2 * cx / W - 1, 2 * cy / H - 1)
+
+        mask_image = None
+        if is_mask:
+            mask_path = masks_path[i]
+            mask_image = np.array(imread(mask_path) / 255.0)
+            mask_image = np.where(mask_image > 0.5, 1.0, 0.0)
+            mask_image = 1.0 - mask_image
+            # if data_type == 'endonerf':
+            #     mask_image[-20:, :] = 0
+
+        # Use sharp depth and boundary mask
+        depth_image = sharp_depths[idx] if is_depth else None
+        boundary_mask = boundary_masks[idx] if is_depth else None
+
+        # Combine tool mask and boundary mask for downstream use
+        combined_mask = None
+        if is_depth:
+            if mask_image is not None and boundary_mask is not None:
+                combined_mask = mask_image.astype(bool) & boundary_mask.astype(bool)
+            elif mask_image is not None:
+                combined_mask = mask_image.astype(bool)
+            elif boundary_mask is not None:
+                combined_mask = boundary_mask.astype(bool)
+            else:
+                combined_mask = None
+            if combined_mask is not None:
+                # Set invalid pixels in sharp depth to zero
+                depth_image = depth_image * combined_mask
+        else:
+            combined_mask = mask_image
 
         mono = None
-
         frame_time = i / (n_frames - 1)
         FovX = focal2fov(focal, image.size[0])
         FovY = focal2fov(focal, image.size[1])
         cam_infos.append(CameraInfo(uid=i, R=R, T=T, FovX=FovX, FovY=FovY,
                                     image=image,
                                     image_path=images_path, image_name=image_name,
-                                    width=image.size[0], height=image.size[1], fid=frame_time, principal_point_ndc=principal_point_ndc, depth=depth_image, mask_depth=mask_depth, mask=mask_image, mono=mono))
-
+                                    width=image.size[0], height=image.size[1], fid=frame_time, principal_point_ndc=principal_point_ndc, depth=depth_image, mask_depth=combined_mask, mask=mask_image, mono=mono))
 
     return cam_infos
 
 
-def readEndonerfInfo(path, data_type, eval, is_depth, depth_scale, is_mask, depth_initial, num_images, hold_id):  # hold_id选择test的帧数ID,这个是endosurf的测试集
+def readEndonerfInfo(path, data_type, eval, is_depth, depth_scale, is_mask, depth_initial, num_images, hold_id):
     print("Reading Training Camera")
     train_cam_infos = readCamerasdavinci(
         path, data_type, is_depth, depth_scale, is_mask, 'poses_bounds.npy', split="train", hold_id=hold_id, num_images=num_images)
@@ -277,7 +315,8 @@ def readEndonerfInfo(path, data_type, eval, is_depth, depth_scale, is_mask, dept
     try:
         pcd = fetchPly(ply_path)
     except:
-        pcd = None
+        # Create an empty BasicPointCloud if fetchPly fails
+        pcd = BasicPointCloud(points=np.zeros((0, 3)), colors=np.zeros((0, 3)), normals=np.zeros((0, 3)))
 
     scene_info = SceneInfo(point_cloud=pcd,
                            train_cameras=train_cam_infos,

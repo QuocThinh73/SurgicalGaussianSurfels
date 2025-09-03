@@ -4,6 +4,7 @@ import imageio
 from glob import glob
 import cv2 as cv
 import scipy.ndimage
+from .image_utils import compute_depth_boundary_mask, get_sharp_depth, save_mask_and_sharp_depth_outputs
 
 
 def imread(f):
@@ -320,3 +321,18 @@ def sample_pts(height, width, factor=2):
     mask_sample = mask_sample_h & mask_sample_w
 
     return mask_sample
+
+def process_depth_sequence_and_save(depths, output_dir, prefix="frame", flag=False):
+    """
+    For a sequence of depth maps, compute and save the depth boundary masks and sharp depth maps as images and a video.
+    Returns the list of sharp depth maps and masks for further processing.
+    """
+    save_mask_and_sharp_depth_outputs(depths, output_dir, prefix, flag=False)
+    sharp_depths = []
+    masks = []
+    for depth in depths:
+        mask = compute_depth_boundary_mask(depth)
+        sharp_depth = get_sharp_depth(depth, mask)
+        sharp_depths.append(sharp_depth)
+        masks.append(mask)
+    return sharp_depths, masks

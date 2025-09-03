@@ -70,6 +70,7 @@ class ModelParams(ParamGroup):
         self.depth_initial = False
         self.accurate_mask = False
         self.use_decoupled_appearance = False
+        self.dino_feature_dir = ""
 
         super().__init__(parser, "Loading Parameters", sentinel)
 

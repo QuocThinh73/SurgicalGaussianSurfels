@@ -110,31 +110,47 @@ def def_reg_loss(gs_can, d_xyz, d_rotation, d_scaling, K=5):
     return loss_pos, loss_cov
 
 
-# Load VGG16 with frozen weights, using the first 19 layers
-vgg = models.vgg16(pretrained=True).features[:2].cuda().eval()
+# DINO feature extractor for perceptual loss
+from utils.dino_utils import DINOFeatureExtractor, dino_perceptual_loss, load_dino_features
 
-# Freeze VGG weights to avoid unnecessary gradient computations
-for param in vgg.parameters():
-    param.requires_grad = False
+# Initialize DINO feature extractor
+dino_extractor = DINOFeatureExtractor()
 
 
-# Define the perceptual loss function with AMP and resizing
-def perceptual_loss(pred, gt):
+# Define the perceptual loss function using DINO features
+def perceptual_loss(pred, gt, gt_image_name=None, dino_feature_dir=None):
+    """
+    Compute perceptual loss using DINO features
+    
+    Args:
+        pred: Predicted image tensor
+        gt: Ground truth image tensor  
+        gt_image_name: Name of the ground truth image file (for loading pre-extracted features)
+        dino_feature_dir: Directory containing pre-extracted DINO features
+    """
     # Ensure pred and gt have batch dimension (N, C, H, W)
     if pred.dim() == 3:  # If the image doesn't have batch size, add it
         pred = pred.unsqueeze(0)
     if gt.dim() == 3:  # If the image doesn't have batch size, add it
         gt = gt.unsqueeze(0)
 
-    pred1 = F.interpolate(pred, size=(256, 256))  # .to(torch.float)  # (N, C, 256, 256)
-    gt1 = F.interpolate(gt, size=(256, 256))  # .to(torch.float)  # (N, C, 256, 256)
+    # Extract DINO features for predicted image
+    pred_features = dino_extractor.extract_features(pred.squeeze(0))
+    
+    # Load pre-extracted features for ground truth if available
+    if gt_image_name is not None and dino_feature_dir and dino_feature_dir.strip():
+        try:
+            gt_features = load_dino_features(dino_feature_dir, gt_image_name)
+            gt_features = gt_features.to(pred_features.device)
+        except FileNotFoundError:
+            # Fallback to on-the-fly extraction if pre-extracted features not found
+            gt_features = dino_extractor.extract_features(gt.squeeze(0))
+    else:
+        # Extract DINO features on-the-fly for ground truth
+        gt_features = dino_extractor.extract_features(gt.squeeze(0))
 
-
-    pred_features = vgg(pred)
-    gt_features = vgg(gt)
-
-
-    loss = F.l1_loss(pred_features, gt_features)  # + lpips_loss
+    # Compute perceptual loss using DINO features
+    loss = dino_perceptual_loss(pred_features, gt_features)
     return loss
 
 
