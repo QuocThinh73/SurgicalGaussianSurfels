@@ -114,7 +114,7 @@ class OptimizationParams(ParamGroup):
 
         
         self.split_interval = 500
-        self.max_screen_size = 20
+        self.max_screen_size = 15
         self.densification_interval = 100
         self.opacity_reset_interval = 3000
         self.densify_from_iter = 500

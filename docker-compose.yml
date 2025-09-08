@@ -1,0 +1,13 @@
+services:
+  sgs:
+    image: sgs:cu118
+    build: .
+    deploy: {}
+    runtime: nvidia
+    device_requests:
+      - capabilities: [gpu]
+    ipc: host
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: bash -lc "conda activate SurgicalGaussianSurfels && bash"

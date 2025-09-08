@@ -97,3 +97,16 @@ obias/
 WACV_SGS.zip
 obias.zip
 
+# Test results and large directories (should not be pushed)
+nvidia_test/
+pulling/
+qualitative_for_StereoMIS_dataset/
+submodules/tiny-cuda-nn/
+
+# Utility and debug files (should not be pushed)
+create_comparison_interactive.py
+debug_args.py
+image_to_pdf.py
+image_to_svg.py
+arguments/endonerf/obias.py
+

@@ -190,8 +190,10 @@ def get_all_initial_data_endo(path, data_type, depth_scale, is_mask, npy_file):
         imageio.imwrite(os.path.join(path, "invisible_mask.png"), inpaint_mask_all)
         kernel = np.ones((5, 5), np.uint8)
         dilated_mask = cv.dilate(inpaint_mask_all, kernel, iterations=2)
+        val = W//2
+        val -= 20
         if data_type == 'endonerf':
-            dilated_mask[-12:, :] = 255
+            dilated_mask[-20:, :int(-val)] = 255
         imageio.imwrite(os.path.join(path, "dilated_invisible_mask.png"), dilated_mask)
 
     # Aggregate depth maps with confidence weighting and variations

@@ -185,8 +185,10 @@ def readCamerasdavinci(path, data_type, is_depth, depth_scale, is_mask, npy_file
             mask_image = np.array(imread(mask_path) / 255.0)
             mask_image = np.where(mask_image > 0.5, 1.0, 0.0)
             mask_image = 1.0 - mask_image
-            # if data_type == 'endonerf':
-            #     mask_image[-20:, :] = 0
+            val = W//2
+            val -= 20
+            if data_type == 'endonerf':
+                mask_image[-20:, :int(-val)] = 0
 
         depth_image = None
         mask_depth = None
@@ -240,8 +242,10 @@ def readCamerasdavinci(path, data_type, is_depth, depth_scale, is_mask, npy_file
             mask_image = np.array(imread(mask_path) / 255.0)
             mask_image = np.where(mask_image > 0.5, 1.0, 0.0)
             mask_image = 1.0 - mask_image
-            # if data_type == 'endonerf':
-            #     mask_image[-20:, :] = 0
+            val2 = W//2
+            val2 -= 20
+            if data_type == 'endonerf':
+                mask_image[-20:, :int(-val2)] = 0
 
         # Use sharp depth and boundary mask
         depth_image = sharp_depths[idx] if is_depth else None

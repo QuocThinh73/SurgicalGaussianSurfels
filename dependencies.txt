@@ -24,3 +24,10 @@ pip install scipy
 pip install dearpygui
 pip install lpips
 pip install timm
+
+# Tiny cuda Option 1: Install from GitHub
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+
+# Tiny cuda Option 2: Install from local clone (if you have the submodule)
+cd submodules/tiny-cuda-nn/bindings/torch
+python setup.py install

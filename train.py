@@ -476,6 +476,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                                 K=1, prune_ratio=opt.contribution_prune_ratio
                             )
                             print(f'Num gs after contribution prune: {len(gaussians.get_xyz)}')
+                            
+                            # Additional aggressive pruning if still too many Gaussians
+                            if len(gaussians.get_xyz) > 300000:
+                                print(f"Too many Gaussians ({len(gaussians.get_xyz)}), applying aggressive pruning...")
+                                # Prune based on opacity more aggressively
+                                aggressive_prune_mask = (gaussians.get_opacity < 0.15).squeeze()
+                                gaussians.prune_points(aggressive_prune_mask)
+                                print(f'Num gs after aggressive prune: {len(gaussians.get_xyz)}')
 
                 if iteration % opt.opacity_reset_interval == 0 or (
                         dataset.white_background and iteration == opt.densify_from_iter):
