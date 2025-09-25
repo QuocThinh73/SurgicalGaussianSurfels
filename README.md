@@ -47,7 +47,7 @@ The CUDA MLP uses the existing tiny-cuda-nn torch bindings, so no additional bui
 python train.py -s data/EndoNeRF/pulling/pulling_soft_tissues -m pull_output/pulling --config arguments/endonerf/pulling.py
 
 # CUDA fully fused implementation (recommended for performance)
-python train.py -s data/EndoNeRF/pulling/pulling_soft_tissues -m pull_output/pulling --config arguments/endonerf/pulling.py --cuda_ff
+python train.py -s data/EndoNeRF/pulling/pulling_soft_tissues -m pull_output/pulling --config arguments/endonerf/pulling.py --fullyfusedMLP
 ```
 
 ### Testing the Integration:
