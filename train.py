@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -49,8 +49,8 @@ def prune_low_contribution_gaussians(gaussians, cameras, pipe, bg, d_xyz, d_rota
     top_list = [None, ] * K
     for i, cam in enumerate(cameras):
         trans = \
-        render(cam, gaussians, pipe, bg, d_xyz, d_rotation, d_scaling, record_transmittance=True, skip_geometric=True)[
-            "transmittance_avg"]
+            render(cam, gaussians, pipe, bg, d_xyz, d_rotation, d_scaling, record_transmittance=True, skip_geometric=True)[
+                "transmittance_avg"]
         if top_list[0] is not None:
             m = trans > top_list[0]
             if m.any():
@@ -70,9 +70,11 @@ def prune_low_contribution_gaussians(gaussians, cameras, pipe, bg, d_xyz, d_rota
 def ranking_loss(error, penalize_ratio=0.7, extra_weights=None, type='mean'):
     error, indices = torch.sort(error)
     # only sum relatively small errors
-    s_error = torch.index_select(error, 0, index=indices[:int(penalize_ratio * indices.shape[0])])
+    s_error = torch.index_select(
+        error, 0, index=indices[:int(penalize_ratio * indices.shape[0])])
     if extra_weights is not None:
-        weights = torch.index_select(extra_weights, 0, index=indices[:int(penalize_ratio * indices.shape[0])])
+        weights = torch.index_select(
+            extra_weights, 0, index=indices[:int(penalize_ratio * indices.shape[0])])
         s_error = s_error * weights
 
     if type == 'mean':
@@ -87,11 +89,15 @@ def normal_gradient_loss(rend_normal, gt_normal):
     sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]).float().unsqueeze(0).unsqueeze(0).to(
         rend_normal.device) / 4
 
-    rend_grad_x = F.conv2d(rend_normal, sobel_x.repeat(3, 1, 1, 1), padding=1, groups=3)
-    rend_grad_y = F.conv2d(rend_normal, sobel_y.repeat(3, 1, 1, 1), padding=1, groups=3)
+    rend_grad_x = F.conv2d(rend_normal, sobel_x.repeat(
+        3, 1, 1, 1), padding=1, groups=3)
+    rend_grad_y = F.conv2d(rend_normal, sobel_y.repeat(
+        3, 1, 1, 1), padding=1, groups=3)
 
-    gt_grad_x = F.conv2d(gt_normal, sobel_x.repeat(3, 1, 1, 1), padding=1, groups=3)
-    gt_grad_y = F.conv2d(gt_normal, sobel_y.repeat(3, 1, 1, 1), padding=1, groups=3)
+    gt_grad_x = F.conv2d(gt_normal, sobel_x.repeat(
+        3, 1, 1, 1), padding=1, groups=3)
+    gt_grad_y = F.conv2d(gt_normal, sobel_y.repeat(
+        3, 1, 1, 1), padding=1, groups=3)
 
     loss_x = F.mse_loss(rend_grad_x, gt_grad_x)
     loss_y = F.mse_loss(rend_grad_y, gt_grad_y)
@@ -103,17 +109,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
-    
+
     # Create deformation model based on MLP flags
     from scene.deform_model import DeformModel
-    deform = DeformModel(use_cutlass=args.cutlassMLP, use_fullyfused=args.fullyfusedMLP)
+    deform = DeformModel(use_cutlass=args.cutlassMLP,
+                         use_fullyfused=args.fullyfusedMLP)
 
-    
     deform.train_setting(opt)
 
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
-
 
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -126,11 +131,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     iter_end = torch.cuda.Event(enable_timing=True)
 
     if dataset.accurate_mask:
-        invisible_mask_path = os.path.join(dataset.source_path, "dilated_invisible_mask.png")
+        invisible_mask_path = os.path.join(
+            dataset.source_path, "dilated_invisible_mask.png")
         inpaint_mask = imread(invisible_mask_path) / 255.0
         np.savetxt("inpaint_mask.txt", inpaint_mask.astype(int), fmt='%d')
-        inpaint_mask_tensor = torch.tensor(inpaint_mask, dtype=torch.float32, device="cuda")
-        np.savetxt("inpaint_mask_tensor.txt", inpaint_mask_tensor.cpu().numpy().astype(int), fmt='%d')
+        inpaint_mask_tensor = torch.tensor(
+            inpaint_mask, dtype=torch.float32, device="cuda")
+        np.savetxt("inpaint_mask_tensor.txt",
+                   inpaint_mask_tensor.cpu().numpy().astype(int), fmt='%d')
 
     viewpoint_stack = None
     ema_loss_for_log = 0.0
@@ -139,7 +147,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     ema_dist_for_log = 0.0
     ema_normal_for_log = 0.0
 
-    progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
+    progress_bar = tqdm(range(first_iter, opt.iterations),
+                        desc="Training progress")
     first_iter += 1
 
     all_cameras = scene.getTrainCameras()
@@ -151,8 +160,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     # Adjust lambda_smooth for FullyFusedMLP if needed
     if hasattr(args, 'fullyfusedMLP') and args.fullyfusedMLP:
-        print("[INFO] Using FullyFusedMLP: Increasing lambda_smooth for more aggressive inpainting.")
-        opt.lambda_smooth = opt.lambda_smooth * 2.0  # Increase by a factor of 2 (adjust as needed)
+        print(
+            "[INFO] Using FullyFusedMLP: Increasing lambda_smooth for more aggressive inpainting.")
+        # Increase by a factor of 2 (adjust as needed)
+        opt.lambda_smooth = opt.lambda_smooth * 2.0
 
     for iteration in range(1, opt.iterations + 1):
 
@@ -175,7 +186,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         N = gaussians.get_xyz.shape[0]
         time_input = fid.unsqueeze(0).expand(N, -1)
-        d_xyz, d_rotation, d_scaling = deform.step(gaussians.get_xyz.detach(), time_input)
+        d_xyz, d_rotation, d_scaling = deform.step(
+            gaussians.get_xyz.detach(), time_input)
 
         # Render
         render_pkg = render(viewpoint_cam, gaussians, pipe, background, d_xyz, d_rotation, d_scaling,
@@ -203,9 +215,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         if lambda_normal > 0.0:
             normal_error = 0.6 * (1 - F.cosine_similarity(rend_normal, surf_normal_median, dim=0)) + \
-                           0.4 * (1 - F.cosine_similarity(rend_normal, surf_normal_expected, dim=0))
-            normal_error = normal_error * viewpoint_cam.gt_alpha_mask.mean(dim=0)
-            normal_error = ranking_loss(normal_error.view(-1), penalize_ratio=0.7, type='mean')
+                0.4 * (1 - F.cosine_similarity(rend_normal,
+                       surf_normal_expected, dim=0))
+            normal_error = normal_error * \
+                viewpoint_cam.gt_alpha_mask.mean(dim=0)
+            normal_error = ranking_loss(
+                normal_error.view(-1), penalize_ratio=0.7, type='mean')
             normal_loss += lambda_normal * normal_error
 
         # Loss
@@ -235,7 +250,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             image = image * mask
         Ll1 = l1_loss_appearance(image, gt_image, appearances, viewpoint_idx)
 
-        loss += (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+        loss += (1.0 - opt.lambda_dssim) * Ll1 + \
+            opt.lambda_dssim * (1.0 - ssim(image, gt_image))
         if opt.lambda_smooth != 0:
             loss += opt.lambda_smooth * img_tv_loss
 
@@ -246,24 +262,28 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             depth1 = depth * mask_depth
             # depth_loss = l1_loss(depth1, gt_depth)
             # loss += 0.001 * depth_loss
-            depth_loss = l1_loss(depth1, gt_depth)  # + 0.5 * multi_scale_gradient_loss(depth1, gt_depth, mask_depth)
+            # + 0.5 * multi_scale_gradient_loss(depth1, gt_depth, mask_depth)
+            depth_loss = l1_loss(depth1, gt_depth)
             loss += 0.001 * depth_loss
 
         # Perceptual loss
         # Get the image name for loading pre-extracted DINO features
-        gt_image_name = viewpoint_cam.image_name if hasattr(viewpoint_cam, 'image_name') else None
+        gt_image_name = viewpoint_cam.image_name if hasattr(
+            viewpoint_cam, 'image_name') else None
         dino_feature_dir = getattr(dataset, 'dino_feature_dir', "")
-        
+
         # Only use pre-extracted features if directory is specified
         if dino_feature_dir and dino_feature_dir.strip():
-            perceptual_loss_val = perceptual_loss(image, gt_image, gt_image_name, opt.dino_feature_dir)
+            perceptual_loss_val = perceptual_loss(
+                image, gt_image, gt_image_name, opt.dino_feature_dir)
         else:
             perceptual_loss_val = perceptual_loss(image, gt_image)
-        
+
         loss += opt.lambda_perceptual * perceptual_loss_val
 
         # deformation loss
-        loss_pos, loss_cov = def_reg_loss(scene.gaussians, d_xyz, d_rotation, d_scaling)
+        loss_pos, loss_cov = def_reg_loss(
+            scene.gaussians, d_xyz, d_rotation, d_scaling)
 
         loss += opt.lambda_pos * loss_pos
         loss += opt.lambda_cov * loss_cov
@@ -309,7 +329,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             # Log and save
             cur_psnr = training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end),
-                                       testing_iterations, scene, render, (pipe, background), deform,
+                                       testing_iterations, scene, render, (
+                                           pipe, background), deform,
                                        dataset.load2gpu_on_the_fly, depth_loss, args)
             if iteration in testing_iterations:
                 if cur_psnr.item() > best_psnr:
@@ -321,14 +342,17 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 scene.save(iteration)
                 deform.save_weights(args.model_path, iteration)
 
-                optimize_path = os.path.join(args.model_path, "optimize/iteration_{}".format(iteration))
+                optimize_path = os.path.join(
+                    args.model_path, "optimize/iteration_{}".format(iteration))
 
                 render_path = os.path.join(optimize_path, "train/renders")
                 depth_path = os.path.join(optimize_path, "train/depth")
                 normal_path = os.path.join(optimize_path, "train/normal")
-                surf_normal_path = os.path.join(optimize_path, "train/surf_normal")
+                surf_normal_path = os.path.join(
+                    optimize_path, "train/surf_normal")
                 normal_np_path = os.path.join(optimize_path, "train/normal_np")
-                surf_normal_np_path = os.path.join(optimize_path, "train/surf_normal_np")
+                surf_normal_np_path = os.path.join(
+                    optimize_path, "train/surf_normal_np")
                 rgb_depth_path = os.path.join(optimize_path, "train/rgb_depth")
 
                 os.makedirs(render_path, exist_ok=True)
@@ -346,8 +370,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     name = view.colmap_id
                     xyz = gaussians.get_xyz
                     time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
-                    d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
-                    render_pkg_re = render(view, gaussians, pipe, background, d_xyz, d_rotation, d_scaling)
+                    d_xyz, d_rotation, d_scaling = deform.step(
+                        xyz.detach(), time_input)
+                    render_pkg_re = render(
+                        view, gaussians, pipe, background, d_xyz, d_rotation, d_scaling)
                     rendering = render_pkg_re["render"]
                     depth_np = render_pkg_re["surf_depth"]
                     alpha_np = render_pkg_re["rend_alpha"]
@@ -357,20 +383,25 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     rgb_depth_wrt = depth2rgb(depth_np, mask_vis1)
 
                     # --- Extract and Save Normals ---
-                    normals = render_pkg_re["rend_normal"]  # Extract normal maps
-                    normals_visual = (normals + 1) / 2  # Normalize normals to [0, 1]
+                    # Extract normal maps
+                    normals = render_pkg_re["rend_normal"]
+                    # Normalize normals to [0, 1]
+                    normals_visual = (normals + 1) / 2
                     surf_normals = render_pkg_re['surf_normal']
-                    surf_normals_visual = (surf_normals + 1) / 2  # Normalize normals to [0, 1]
+                    # Normalize normals to [0, 1]
+                    surf_normals_visual = (surf_normals + 1) / 2
                     torchvision.utils.save_image(normals_visual,
                                                  os.path.join(normal_path, '{0:05d}'.format(name) + ".png"))
-                    np.save(os.path.join(normal_np_path, '{0:05d}'.format(idx) + ".npy"), normals.cpu().numpy())
+                    np.save(os.path.join(normal_np_path, '{0:05d}'.format(
+                        idx) + ".npy"), normals.cpu().numpy())
 
                     torchvision.utils.save_image(surf_normals_visual,
                                                  os.path.join(surf_normal_path, '{0:05d}'.format(name) + ".png"))
                     np.save(os.path.join(surf_normal_np_path, '{0:05d}'.format(idx) + ".npy"),
                             surf_normals.cpu().numpy())
 
-                    torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(name) + ".png"))
+                    torchvision.utils.save_image(rendering, os.path.join(
+                        render_path, '{0:05d}'.format(name) + ".png"))
                     torchvision.utils.save_image(depth2 * alpha_np,
                                                  os.path.join(depth_path, '{0:05d}'.format(name) + ".png"))
                     torchvision.utils.save_image(rgb_depth_wrt * alpha_np,
@@ -413,25 +444,31 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             #         gaussians.reset_opacity()
             # Densification
             # Use custom densification parameters if available (for FullyFusedMLP)
-            densify_until_iter = getattr(deform, 'custom_densify_until_iter', None)
+            densify_until_iter = getattr(
+                deform, 'custom_densify_until_iter', None)
             if densify_until_iter is None:
                 densify_until_iter = opt.densify_until_iter
-                
-            densify_grad_threshold = getattr(deform, 'custom_densify_grad_threshold', None)
+
+            densify_grad_threshold = getattr(
+                deform, 'custom_densify_grad_threshold', None)
             if densify_grad_threshold is None:
                 densify_grad_threshold = opt.densify_grad_threshold
-                
-            densification_interval = getattr(deform, 'custom_densification_interval', None)
+
+            densification_interval = getattr(
+                deform, 'custom_densification_interval', None)
             if densification_interval is None:
                 densification_interval = opt.densification_interval
-            
+
             # Debug output for custom parameters (only print once)
             if iteration == 1 and hasattr(deform, 'custom_densify_grad_threshold'):
                 print(f"Using custom densification parameters for FullyFusedMLP:")
-                print(f"  grad_threshold: {densify_grad_threshold} (vs default {opt.densify_grad_threshold})")
-                print(f"  until_iter: {densify_until_iter} (vs default {opt.densify_until_iter})")
-                print(f"  interval: {densification_interval} (vs default {opt.densification_interval})")
-            
+                print(
+                    f"  grad_threshold: {densify_grad_threshold} (vs default {opt.densify_grad_threshold})")
+                print(
+                    f"  until_iter: {densify_until_iter} (vs default {opt.densify_until_iter})")
+                print(
+                    f"  interval: {densification_interval} (vs default {opt.densification_interval})")
+
             if iteration < densify_until_iter:
                 # if iteration == 16000:
                 #     print(f"Type of gaussians.max_radii2D: {type(gaussians.max_radii2D)}")
@@ -442,12 +479,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if render_pkg["transmittance_avg"] is not None:
                     gaussians.max_radii2D[visibility_filter] = torch.max(
                         gaussians.max_radii2D[visibility_filter],
-                        radii[visibility_filter] * (render_pkg["transmittance_avg"][visibility_filter] > 0.01)
+                        radii[visibility_filter] *
+                        (render_pkg["transmittance_avg"]
+                         [visibility_filter] > 0.01)
                     )
-                gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter, None)
+                gaussians.add_densification_stats(
+                    viewspace_point_tensor, visibility_filter, None)
 
                 # Adjust time input once based on the current number of Gaussians
-                time_input = fid.unsqueeze(0).expand(gaussians.get_xyz.shape[0], -1)
+                time_input = fid.unsqueeze(0).expand(
+                    gaussians.get_xyz.shape[0], -1)
 
                 if iteration > opt.densify_from_iter:
                     # Densify and prune
@@ -456,34 +497,41 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                         gaussians.densify_and_prune(densify_grad_threshold, opt.opacity_cull, scene.cameras_extent,
                                                     prune_big_points)
                         # Update time input after densification
-                        time_input = fid.unsqueeze(0).expand(gaussians.get_xyz.shape[0], -1)
+                        time_input = fid.unsqueeze(0).expand(
+                            gaussians.get_xyz.shape[0], -1)
 
                     # Split big points
                     if iteration % opt.split_interval == 0:
                         gaussians.split_big_points(opt.max_screen_size)
                         # Update time input after splitting
-                        time_input = fid.unsqueeze(0).expand(gaussians.get_xyz.shape[0], -1)
+                        time_input = fid.unsqueeze(0).expand(
+                            gaussians.get_xyz.shape[0], -1)
 
                     # Prune low-contribution Gaussians
                     if iteration % opt.contribution_prune_interval == 0:
                         if iteration % opt.opacity_reset_interval == opt.contribution_prune_interval:
                             print("Skipped Pruning for", iteration)
                         else:
-                            d_xyz, d_rotation, d_scaling = deform.step(gaussians.get_xyz.detach(), time_input)
+                            d_xyz, d_rotation, d_scaling = deform.step(
+                                gaussians.get_xyz.detach(), time_input)
                             d_scaling = d_scaling[:, :2]
                             prune_low_contribution_gaussians(
                                 gaussians, all_cameras, pipe, background, d_xyz, d_rotation, d_scaling,
                                 K=1, prune_ratio=opt.contribution_prune_ratio
                             )
-                            print(f'Num gs after contribution prune: {len(gaussians.get_xyz)}')
-                            
+                            print(
+                                f'Num gs after contribution prune: {len(gaussians.get_xyz)}')
+
                             # Additional aggressive pruning if still too many Gaussians
                             if len(gaussians.get_xyz) > 300000:
-                                print(f"Too many Gaussians ({len(gaussians.get_xyz)}), applying aggressive pruning...")
+                                print(
+                                    f"Too many Gaussians ({len(gaussians.get_xyz)}), applying aggressive pruning...")
                                 # Prune based on opacity more aggressively
-                                aggressive_prune_mask = (gaussians.get_opacity < 0.15).squeeze()
+                                aggressive_prune_mask = (
+                                    gaussians.get_opacity < 0.15).squeeze()
                                 gaussians.prune_points(aggressive_prune_mask)
-                                print(f'Num gs after aggressive prune: {len(gaussians.get_xyz)}')
+                                print(
+                                    f'Num gs after aggressive prune: {len(gaussians.get_xyz)}')
 
                 if iteration % opt.opacity_reset_interval == 0 or (
                         dataset.white_background and iteration == opt.densify_from_iter):
@@ -500,7 +548,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+                torch.save((gaussians.capture(), iteration),
+                           scene.model_path + "/chkpnt" + str(iteration) + ".pth")
 
     print("Best PSNR = {} in Iteration {}".format(best_psnr, best_iteration))
 
@@ -541,11 +590,14 @@ def read_config_params(args, config):
 def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene: Scene, renderFunc,
                     renderArgs, deform, load2gpu_on_the_fly, depth_loss=None, args=None):
     if tb_writer:
-        tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
+        tb_writer.add_scalar('train_loss_patches/l1_loss',
+                             Ll1.item(), iteration)
 
         if depth_loss is not None:
-            tb_writer.add_scalar('train_loss_patches/depth_loss', depth_loss.item(), iteration)
-        tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
+            tb_writer.add_scalar(
+                'train_loss_patches/depth_loss', depth_loss.item(), iteration)
+        tb_writer.add_scalar(
+            'train_loss_patches/total_loss', loss.item(), iteration)
         tb_writer.add_scalar('iter_time', elapsed, iteration)
 
     test_psnr = 0.0
@@ -567,11 +619,14 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                     fid = viewpoint.fid
                     xyz = scene.gaussians.get_xyz
                     time_input = fid.unsqueeze(0).expand(xyz.shape[0], -1)
-                    d_xyz, d_rotation, d_scaling = deform.step(xyz.detach(), time_input)
+                    d_xyz, d_rotation, d_scaling = deform.step(
+                        xyz.detach(), time_input)
                     image = torch.clamp(
-                        renderFunc(viewpoint, scene.gaussians, *renderArgs, d_xyz, d_rotation, d_scaling)["render"],
+                        renderFunc(viewpoint, scene.gaussians, *renderArgs,
+                                   d_xyz, d_rotation, d_scaling)["render"],
                         0.0, 1.0)
-                    gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+                    gt_image = torch.clamp(
+                        viewpoint.original_image.to("cuda"), 0.0, 1.0)
 
                     if viewpoint.mask is not None:
                         mask = viewpoint.mask.unsqueeze(0).cuda()
@@ -593,14 +648,19 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                 psnr_test = psnr(images, gts).mean()
                 if config['name'] == 'test' or len(validation_configs[0]['cameras']) == 0:
                     test_psnr = psnr_test
-                print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
+                print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(
+                    iteration, config['name'], l1_test, psnr_test))
                 if tb_writer:
-                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
-                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
+                    tb_writer.add_scalar(
+                        config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
+                    tb_writer.add_scalar(
+                        config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
 
         if tb_writer:
-            tb_writer.add_histogram("scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
-            tb_writer.add_scalar('total_points', scene.gaussians.get_xyz.shape[0], iteration)
+            tb_writer.add_histogram(
+                "scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
+            tb_writer.add_scalar(
+                'total_points', scene.gaussians.get_xyz.shape[0], iteration)
         torch.cuda.empty_cache()
 
     return test_psnr
@@ -617,19 +677,19 @@ if __name__ == "__main__":
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
     parser.add_argument("--test_iterations", nargs="+", type=int,
                         default=[3000, 5000, 6000, 7_000] + list(range(10000, 60001, 1000)))
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[20_000, 40000, 60000])
+    parser.add_argument("--save_iterations", nargs="+",
+                        type=int, default=[20_000, 40000, 60000])
 
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--config", type=str, default="")
 
-
-
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[10000, 20000, 40000])
+    parser.add_argument("--checkpoint_iterations", nargs="+",
+                        type=int, default=[10000, 20000, 40000])
     parser.add_argument("--start_checkpoint", type=str, default=None)
-    parser.add_argument("--cutlassMLP", action="store_true", default=False, 
-                       help="Use tiny-cuda-nn CutlassMLP for deformation network (faster training/inference)")
-    parser.add_argument("--fullyfusedMLP", action="store_true", default=False, 
-                       help="Use tiny-cuda-nn FullyFusedMLP for deformation network (fastest, 128 neurons)")
+    parser.add_argument("--cutlassMLP", action="store_true", default=False,
+                        help="Use tiny-cuda-nn CutlassMLP for deformation network (faster training/inference)")
+    parser.add_argument("--fullyfusedMLP", action="store_true", default=False,
+                        help="Use tiny-cuda-nn FullyFusedMLP for deformation network (fastest, 128 neurons)")
 
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
@@ -638,7 +698,8 @@ if __name__ == "__main__":
 
     # Ensure only one MLP type is selected
     if args.cutlassMLP and args.fullyfusedMLP:
-        raise ValueError("Cannot use both --cutlassMLP and --fullyfusedMLP at the same time.")
+        raise ValueError(
+            "Cannot use both --cutlassMLP and --fullyfusedMLP at the same time.")
 
     print("Optimizing " + args.model_path)
 
