@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    python3 python3-pip \
+    python3 python3-pip python3-dev \
     git \
     build-essential \
     cmake \
@@ -20,8 +20,18 @@ RUN apt-get update && \
 WORKDIR /workspace
 COPY . /workspace
 
+ENV TORCH_CUDA_ARCH_LIST="8.6"
+ENV TCNN_CUDA_ARCHITECTURES=86
+ENV MAX_JOBS=2
+
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install \
+        torch==2.1.2 \
+        torchvision==0.16.2 \
+        torchaudio==2.1.2 \
+        --index-url https://download.pytorch.org/whl/cu118
+
+RUN python3 -m pip install \
         plyfile==0.8.1 \
         tqdm \
         matplotlib \
@@ -39,17 +49,15 @@ RUN python3 -m pip install --upgrade pip && \
         lpips \
         timm \
         tensorboard \
-        open3d && \
-    python3 -m pip install \
-        torch==2.1.2 \
-        torchvision==0.16.2 \
-        torchaudio==2.1.2 \
-        --index-url https://download.pytorch.org/whl/cu118 && \
-    python3 -m pip install -e submodules/diff-surfel-rasterization --use-pep517 --no-build-isolation && \
-    python3 -m pip install -e submodules/simple-knn --use-pep517 --no-build-isolation && \
-    python3 -m pip install -e submodules/fused-ssim --use-pep517 --no-build-isolation && \
-    python3 -m pip install "git+https://github.com/facebookresearch/pytorch3d.git" --no-build-isolation && \
-    python3 -m pip install "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch" && \
-    python3 -m pip install --force-reinstall -v "numpy==1.25.2"
+        open3d
+
+RUN python3 -m pip install --force-reinstall -v "numpy==1.25.2" && \
+    python3 -m pip install submodules/diff-surfel-rasterization --use-pep517 --no-build-isolation && \
+    python3 -m pip install submodules/simple-knn --use-pep517 --no-build-isolation && \
+    python3 -m pip install submodules/fused-ssim --use-pep517 --no-build-isolation
+
+RUN python3 -m pip install "git+https://github.com/facebookresearch/pytorch3d.git" --no-build-isolation
+
+RUN python3 -m pip install "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch" --no-build-isolation
 
 CMD ["bash"]
